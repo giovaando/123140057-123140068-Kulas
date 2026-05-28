@@ -7,82 +7,89 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import com.example.raillog.presentation.screens.addsupply.AddSupplyScreen
-import com.example.raillog.presentation.screens.ai.AIAssistantScreen
-import com.example.raillog.presentation.screens.detail.SupplyDetailScreen
+import com.example.raillog.presentation.screens.welcome.WelcomeScreen
+import com.example.raillog.presentation.screens.login.LoginScreen
 import com.example.raillog.presentation.screens.home.HomeScreen
+import com.example.raillog.presentation.screens.addsupply.AddSupplyScreen
+import com.example.raillog.presentation.screens.detail.SupplyDetailScreen
+import com.example.raillog.presentation.screens.ai.AIAssistantScreen
 
 @Composable
 fun AppNavHost(
-    navController: NavHostController = rememberNavController(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    navController: NavHostController = rememberNavController()
 ) {
-    val navigationActions = createNavigationActions(navController)
-
     NavHost(
         navController = navController,
-        startDestination = Route.Home,
+        startDestination = Route.Welcome, // Layar pertama dibuka
         modifier = modifier
     ) {
+        // Layar Sambutan (Welcome)
+        composable<Route.Welcome> {
+            WelcomeScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Route.Login) {
+                        popUpTo(Route.Welcome) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Layar Otentikasi
+        composable<Route.Login> {
+            LoginScreen(
+                onNavigateToHome = {
+                    navController.navigate(Route.Home) {
+                        popUpTo(Route.Login) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Layar Dashboard
         composable<Route.Home> {
             HomeScreen(
-                onNavigateToAddNote = { navigationActions.navigateToAddSupply() },
-                onNavigateToDetail = { itemId -> navigationActions.navigateToSupplyDetail(itemId) },
-                onNavigateToAI = { navigationActions.navigateToAIAssistant() }
+                onNavigateToAddNote = {
+                    navController.navigate(Route.AddSupply(null))
+                },
+                onNavigateToDetail = { id ->
+                    navController.navigate(Route.SupplyDetail(id))
+                },
+                onNavigateToAI = {
+                    navController.navigate(Route.AIAssistant(null, null))
+                }
             )
         }
 
+        // Layar Tambah Suku Cadang
         composable<Route.AddSupply> { backStackEntry ->
-            val route: Route.AddSupply = backStackEntry.toRoute()
+            val route = backStackEntry.toRoute<Route.AddSupply>()
             AddSupplyScreen(
                 itemId = route.itemId,
-                onNavigateBack = { navigationActions.navigateBack() }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
+        // Layar Detail Suku Cadang
         composable<Route.SupplyDetail> { backStackEntry ->
-            val route: Route.SupplyDetail = backStackEntry.toRoute()
+            val route = backStackEntry.toRoute<Route.SupplyDetail>()
             SupplyDetailScreen(
                 itemId = route.itemId,
-                onNavigateBack = { navigationActions.navigateBack() },
-                onNavigateToEdit = { navigationActions.navigateToAddSupply(route.itemId) },
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToEdit = { id ->
+                    navController.navigate(Route.AddSupply(id))
+                }
             )
         }
 
+        // Layar Asisten AI
         composable<Route.AIAssistant> { backStackEntry ->
-            val route: Route.AIAssistant = backStackEntry.toRoute()
+            val route = backStackEntry.toRoute<Route.AIAssistant>()
             AIAssistantScreen(
                 noteId = route.itemId,
                 initialText = route.initialText,
-                onNavigateBack = { navigationActions.navigateBack() },
-                onApplyResult = null
+                onNavigateBack = { navController.popBackStack() }
             )
-        }
-    }
-}
-
-private fun createNavigationActions(navController: NavHostController): NavigationActions {
-    return object : NavigationActions {
-        override fun navigateToHome() {
-            navController.navigate(Route.Home) {
-                popUpTo(Route.Home) { inclusive = true }
-            }
-        }
-
-        override fun navigateToAddSupply(itemId: Long?) {
-            navController.navigate(Route.AddSupply(itemId))
-        }
-
-        override fun navigateToSupplyDetail(itemId: Long) {
-            navController.navigate(Route.SupplyDetail(itemId))
-        }
-
-        override fun navigateToAIAssistant(itemId: Long?, initialText: String?) {
-            navController.navigate(Route.AIAssistant(itemId, initialText))
-        }
-
-        override fun navigateBack() {
-            navController.popBackStack()
         }
     }
 }
