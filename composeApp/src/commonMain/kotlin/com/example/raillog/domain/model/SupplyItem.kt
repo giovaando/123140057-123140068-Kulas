@@ -19,15 +19,16 @@ data class SupplyItem(
     val updatedAt: Instant = Clock.System.now()
 )
 
-enum class PartCategory(val displayName: String) {
-    BOGIE("Bogie & Roda"),
-    PROPULSION("Propulsi & Motor"),
-    BRAKING("Sistem Pengereman"),
-    ELECTRICAL("Kelistrikan"),
-    BODY("Bodi & Struktur"),
-    INTERIOR("Interior"),
-    SAFETY("Keselamatan"),
-    MAINTENANCE("Pemeliharaan");
+enum class PartCategory() {
+    BOGIE,
+    PROPULSION,
+    BRAKING,
+    ELECTRICAL,
+    BODY,
+    INTERIOR,
+    SAFETY,
+    MAINTENANCE,
+    INFRASTRUCTURE;
 
     companion object {
         fun fromString(value: String) = entries.find { it.name == value } ?: MAINTENANCE

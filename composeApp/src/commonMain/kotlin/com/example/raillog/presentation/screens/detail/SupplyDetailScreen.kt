@@ -197,12 +197,12 @@ private fun DetailContent(item: SupplyItem, onStatusChange: (SupplyStatus) -> Un
         SectionCard(title = "Technical Specifications", icon = Icons.Default.Tune) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    SpecItem(label = "Category", value = item.category.displayName, modifier = Modifier.weight(1f))
+                    SpecItem(label = "Category", value = item.category.name, modifier = Modifier.weight(1f))
                     SpecItem(label = "Quantity", value = "${item.quantity} ${item.unit}", modifier = Modifier.weight(1f))
                 }
                 Row(modifier = Modifier.fillMaxWidth()) {
                     SpecItem(label = "Supplier", value = item.supplier.ifBlank { "-" }, modifier = Modifier.weight(1f))
-                    SpecItem(label = "Priority", value = item.priority.displayName, modifier = Modifier.weight(1f))
+                    SpecItem(label = "Priority", value = item.priority.name, modifier = Modifier.weight(1f))
                 }
             }
         }
