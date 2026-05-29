@@ -9,10 +9,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.raillog.presentation.screens.welcome.WelcomeScreen
 import com.example.raillog.presentation.screens.login.LoginScreen
+import com.example.raillog.presentation.screens.staff_main.StaffMainScreen
 import com.example.raillog.presentation.screens.home.HomeScreen
 import com.example.raillog.presentation.screens.addsupply.AddSupplyScreen
 import com.example.raillog.presentation.screens.detail.SupplyDetailScreen
 import com.example.raillog.presentation.screens.ai.AIAssistantScreen
+import com.example.raillog.presentation.screens.requisition.RequisitionScreen
 
 @Composable
 fun AppNavHost(
@@ -21,10 +23,9 @@ fun AppNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = Route.Welcome, // Layar pertama dibuka
+        startDestination = Route.Welcome,
         modifier = modifier
     ) {
-        // Layar Sambutan (Welcome)
         composable<Route.Welcome> {
             WelcomeScreen(
                 onNavigateToLogin = {
@@ -35,18 +36,40 @@ fun AppNavHost(
             )
         }
 
-        // Layar Otentikasi
         composable<Route.Login> {
             LoginScreen(
                 onNavigateToHome = {
-                    navController.navigate(Route.Home) {
+                    // Sementara mengarahkan langsung ke StaffMainScreen
+                    navController.navigate(Route.StaffMain) {
                         popUpTo(Route.Login) { inclusive = true }
                     }
                 }
             )
         }
 
-        // Layar Dashboard
+        // --- Rute Baru untuk Staff Gudang ---
+        composable<Route.StaffMain> {
+            StaffMainScreen(
+                onNavigateToNewRequisition = {
+                    navController.navigate(Route.RequisitionWizard) // Arahkan ke rute Form
+                }
+            )
+        }
+
+        // --- Rute Form 5 Langkah ---
+        composable<Route.RequisitionWizard> {
+            RequisitionScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToHome = {
+                    // Ketika submit sukses, kembali ke halaman utama Staff
+                    navController.navigate(Route.StaffMain) {
+                        popUpTo(Route.StaffMain) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // --- Rute Lama ---
         composable<Route.Home> {
             HomeScreen(
                 onNavigateToAddNote = {
@@ -61,7 +84,6 @@ fun AppNavHost(
             )
         }
 
-        // Layar Tambah Suku Cadang
         composable<Route.AddSupply> { backStackEntry ->
             val route = backStackEntry.toRoute<Route.AddSupply>()
             AddSupplyScreen(
@@ -70,7 +92,6 @@ fun AppNavHost(
             )
         }
 
-        // Layar Detail Suku Cadang
         composable<Route.SupplyDetail> { backStackEntry ->
             val route = backStackEntry.toRoute<Route.SupplyDetail>()
             SupplyDetailScreen(
@@ -82,7 +103,6 @@ fun AppNavHost(
             )
         }
 
-        // Layar Asisten AI
         composable<Route.AIAssistant> { backStackEntry ->
             val route = backStackEntry.toRoute<Route.AIAssistant>()
             AIAssistantScreen(
