@@ -39,7 +39,6 @@ fun AppNavHost(
         composable<Route.Login> {
             LoginScreen(
                 onNavigateToHome = {
-                    // Sementara mengarahkan langsung ke StaffMainScreen
                     navController.navigate(Route.StaffMain) {
                         popUpTo(Route.Login) { inclusive = true }
                     }
@@ -51,17 +50,25 @@ fun AppNavHost(
         composable<Route.StaffMain> {
             StaffMainScreen(
                 onNavigateToNewRequisition = {
-                    navController.navigate(Route.RequisitionWizard) // Arahkan ke rute Form
+                    // Jika bikin baru, draftId-nya kosong
+                    navController.navigate(Route.RequisitionWizard(draftId = null))
+                },
+                onNavigateToResumeDraft = { draftId ->
+                    // Jika melanjutkan, kirimkan ID draft-nya
+                    navController.navigate(Route.RequisitionWizard(draftId = draftId))
                 }
             )
         }
 
         // --- Rute Form 5 Langkah ---
-        composable<Route.RequisitionWizard> {
+        composable<Route.RequisitionWizard> { backStackEntry ->
+            // Menangkap parameter dari URL / Route
+            val route = backStackEntry.toRoute<Route.RequisitionWizard>()
+
             RequisitionScreen(
+                draftId = route.draftId, // Kirimkan data yang ditangkap ke dalam Screen
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToHome = {
-                    // Ketika submit sukses, kembali ke halaman utama Staff
                     navController.navigate(Route.StaffMain) {
                         popUpTo(Route.StaffMain) { inclusive = true }
                     }
