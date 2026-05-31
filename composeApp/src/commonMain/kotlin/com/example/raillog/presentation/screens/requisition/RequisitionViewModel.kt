@@ -12,106 +12,163 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.datetime.Clock // IMPORT WAKTU KMP
+import kotlin.random.Random
 
-// 1. DATA MODEL
+@Serializable
+data class CatalogItemUI(
+    val id: String, val name: String, val category: String,
+    val stock: Int, val isSafe: Boolean, val reqQty: Int = 0
+)
+
+@Serializable
 data class RequisitionFormState(
-    val requestorName: String = "Giovan Lado",
-    val employeeId: String = "RLN-123140068",
-    val department: String = "Rolling Stock Maintenance",
-    val dateOfRequest: String = "29/05/2026",
-
+    val requestorName: String = "",
+    val employeeId: String = "",
+    val department: String = "",
+    val dateOfRequest: String = "",
     val projectType: String = "LRT",
     val projectCode: String = "",
     val destinationSite: String = "",
-
-    val selectedMaterialsCount: Int = 0,
-    val hasUploadedBlueprint: Boolean = false,
+    val selectedCategory: String = "All",
+    val searchQuery: String = "",
+    val catalogItems: List<CatalogItemUI> = listOf(
+        CatalogItemUI("SLP-C-091", "Bantalan Beton Wika", "Infrastructure", 450, true),
+        CatalogItemUI("RFL-R-054", "Rel Profile R54 (20m)", "Infrastructure", 12, false),
+        CatalogItemUI("FST-E-102", "Penambat E-Clip", "Spare Parts", 5000, true),
+        CatalogItemUI("BRG-992-A", "Heavy-Duty Steel Bearings", "Spare Parts", 240, true),
+        CatalogItemUI("WRN-110-T", "Wrench Set Pro", "Tools", 15, true)
+    ),
+    val uploadedDocs: List<String> = emptyList(),
+    val isUploadingDoc: Boolean = false,
     val isSigned: Boolean = false,
-
     val isSubmitting: Boolean = false,
     val submitSuccess: Boolean = false,
     val errorMessage: String? = null
 )
 
-// 2. VIEWMODEL (Sudah Di-inject dengan Repository SQLDelight)
-class RequisitionViewModel(
-    private val repository: SupplyRepository
-) : ViewModel() {
+class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RequisitionFormState())
     val uiState: StateFlow<RequisitionFormState> = _uiState.asStateFlow()
 
-    fun updateProjectCode(code: String) {
-        _uiState.update { it.copy(projectCode = code) }
+    private var currentDraftId = "DRAFT_${Random.nextInt(100000, 999999)}"
+
+    fun loadDraft(draftId: String, onStepLoaded: (Int) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val drafts = repository.getAllDrafts().firstOrNull()
+                val targetDraft = drafts?.find { it.draftId == draftId }
+
+                if (targetDraft != null) {
+                    currentDraftId = draftId
+                    val savedState = Json.decodeFromString<RequisitionFormState>(targetDraft.formStateJson)
+                    _uiState.value = savedState
+                    onStepLoaded(targetDraft.currentStep)
+                }
+            } catch (e: Exception) {
+                println("Gagal memuat draft: ${e.message}")
+            }
+        }
     }
 
-    fun updateProjectType(type: String) {
-        _uiState.update { it.copy(projectType = type) }
+    fun updateName(name: String) { _uiState.update { it.copy(requestorName = name) } }
+    fun updateEmployeeId(id: String) { _uiState.update { it.copy(employeeId = id) } }
+    fun updateDepartment(dept: String) { _uiState.update { it.copy(department = dept) } }
+    fun updateDate(date: String) { _uiState.update { it.copy(dateOfRequest = date) } }
+    fun updateProjectType(type: String) { _uiState.update { it.copy(projectType = type) } }
+    fun updateProjectCode(code: String) { _uiState.update { it.copy(projectCode = code) } }
+    fun updateDestinationSite(site: String) { _uiState.update { it.copy(destinationSite = site) } }
+    fun updateCategoryFilter(category: String) { _uiState.update { it.copy(selectedCategory = category) } }
+    fun updateSearchQuery(query: String) { _uiState.update { it.copy(searchQuery = query) } }
+
+    fun updateItemQuantity(itemId: String, isAdd: Boolean) {
+        _uiState.update { state ->
+            val updatedCatalog = state.catalogItems.map { item ->
+                if (item.id == itemId) {
+                    val newQty = if (isAdd) item.reqQty + 1 else maxOf(0, item.reqQty - 1)
+                    item.copy(reqQty = newQty)
+                } else item
+            }
+            state.copy(catalogItems = updatedCatalog)
+        }
     }
 
-    fun updateDestinationSite(site: String) {
-        _uiState.update { it.copy(destinationSite = site) }
+    fun addUploadedDocument(docName: String) {
+        _uiState.update {
+            val currentDocs = it.uploadedDocs.toMutableList()
+            currentDocs.add(docName)
+            it.copy(uploadedDocs = currentDocs)
+        }
     }
 
-    fun signDocument() {
-        _uiState.update { it.copy(isSigned = true) }
+    fun setSignedStatus(signed: Boolean) {
+        _uiState.update { it.copy(isSigned = signed) }
     }
 
-    // FUNGSI UTAMA: MENYIMPAN KE SQLDELIGHT
+    fun saveDraftAutomatically(currentStep: Int) {
+        val currentState = _uiState.value
+        if (currentState.requestorName.isBlank() && currentState.projectCode.isBlank()) return
+
+        viewModelScope.launch {
+            try {
+                val jsonString = Json.encodeToString(currentState)
+                repository.saveDraft(
+                    draftId = currentDraftId,
+                    projectTitle = currentState.projectCode.ifBlank { "Untitled Draft" },
+                    currentStep = currentStep,
+                    lastUpdated = Clock.System.now().toEpochMilliseconds(),
+                    formStateJson = jsonString
+                )
+            } catch (e: Exception) {
+                println("Gagal menyimpan draft: ${e.message}")
+            }
+        }
+    }
+
     fun submitRequisition() {
         val currentState = _uiState.value
-
-        // 1. Validasi
-        if (currentState.projectCode.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Project Code tidak boleh kosong!") }
+        if (currentState.projectCode.isBlank() || currentState.requestorName.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Mohon lengkapi Nama dan Project Code!") }
+            return
+        }
+        if (!currentState.isSigned) {
+            _uiState.update { it.copy(errorMessage = "Tanda tangan wajib diisi di Final Review!") }
             return
         }
 
         _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
 
-        // 2. Eksekusi penyimpanan ke Database di latar belakang (Coroutine)
         viewModelScope.launch {
             try {
-                // Efek loading buatan agar UI terlihat natural
                 delay(1000)
-
-                // Mapping data form ke tabel database SupplyItem kita
+                // MENYESUAIKAN DENGAN PARAMETER SUPPLYITEM.KT MILIK ANDA
                 val newItem = SupplyItem(
                     id = 0L,
-                    name = "Project: ${currentState.projectType} Requisition",
                     partCode = currentState.projectCode,
-                    priority = Priority.HIGH,
-                    status = SupplyStatus.PENDING,
+                    name = "Project: ${currentState.projectType} Requisition",
                     category = PartCategory.INFRASTRUCTURE,
                     quantity = 1,
+                    unit = "Unit",
                     supplier = "Internal Depo",
-                    unit = "Unit"
+                    status = SupplyStatus.PENDING,
+                    priority = Priority.HIGH,
+                    documentRef = null,
+                    notes = "",
+                    createdAt = Clock.System.now(), // Gunakan Instant langsung
+                    updatedAt = Clock.System.now()  // Gunakan Instant langsung
                 )
-
-                // Simpan ke SQLDelight!
                 repository.insertItem(newItem)
-
-                // Beri sinyal sukses ke UI
-                _uiState.update {
-                    it.copy(
-                        isSubmitting = false,
-                        submitSuccess = true
-                    )
-                }
+                repository.deleteDraft(currentDraftId)
+                _uiState.update { it.copy(isSubmitting = false, submitSuccess = true) }
             } catch (e: Exception) {
-                // Jika terjadi error pada database (misal memori penuh)
-                _uiState.update {
-                    it.copy(
-                        isSubmitting = false,
-                        errorMessage = "Gagal menyimpan ke database: ${e.message}"
-                    )
-                }
+                _uiState.update { it.copy(isSubmitting = false, errorMessage = "Gagal: ${e.message}") }
             }
         }
-    }
-
-    fun clearError() {
-        _uiState.update { it.copy(errorMessage = null) }
     }
 }
