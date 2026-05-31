@@ -17,6 +17,7 @@ import com.example.raillog.presentation.screens.detail.SupplyDetailViewModel
 import com.example.raillog.presentation.screens.home.HomeViewModel
 import com.example.raillog.presentation.screens.login.LoginViewModel
 import com.example.raillog.presentation.screens.requisition.RequisitionViewModel
+import com.example.raillog.presentation.screens.staff_main.StaffMainViewModel
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
@@ -70,6 +71,7 @@ val viewModelModule = module {
     viewModelOf(::AIAssistantViewModel)
     viewModelOf(::LoginViewModel)
     viewModelOf(::RequisitionViewModel)
+    viewModelOf(::StaffMainViewModel)
 }
 
 // ==================== SHARED MODULES ====================
