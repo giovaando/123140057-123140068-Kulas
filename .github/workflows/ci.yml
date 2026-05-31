@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [ "project/123140057-123140068-RailLog" ]
 
-defaults:
-  run:
-    working-directory: ./123140057-123140068-RailLog-aacd548544449a45c0ec818da29e9f469ff0843b
-
 jobs:
   build:
     runs-on: ubuntu-latest
