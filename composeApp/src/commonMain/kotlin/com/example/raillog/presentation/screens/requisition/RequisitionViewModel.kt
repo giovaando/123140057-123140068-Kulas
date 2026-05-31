@@ -67,7 +67,8 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
 
                 if (targetDraft != null) {
                     currentDraftId = draftId
-                    val savedState = Json.decodeFromString<RequisitionFormState>(targetDraft.formStateJson)
+                    val savedState =
+                        Json.decodeFromString<RequisitionFormState>(targetDraft.formStateJson)
                     _uiState.value = savedState
                     onStepLoaded(targetDraft.currentStep)
                 }
@@ -77,15 +78,41 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
         }
     }
 
-    fun updateName(name: String) { _uiState.update { it.copy(requestorName = name) } }
-    fun updateEmployeeId(id: String) { _uiState.update { it.copy(employeeId = id) } }
-    fun updateDepartment(dept: String) { _uiState.update { it.copy(department = dept) } }
-    fun updateDate(date: String) { _uiState.update { it.copy(dateOfRequest = date) } }
-    fun updateProjectType(type: String) { _uiState.update { it.copy(projectType = type) } }
-    fun updateProjectCode(code: String) { _uiState.update { it.copy(projectCode = code) } }
-    fun updateDestinationSite(site: String) { _uiState.update { it.copy(destinationSite = site) } }
-    fun updateCategoryFilter(category: String) { _uiState.update { it.copy(selectedCategory = category) } }
-    fun updateSearchQuery(query: String) { _uiState.update { it.copy(searchQuery = query) } }
+    fun updateName(name: String) {
+        _uiState.update { it.copy(requestorName = name) }
+    }
+
+    fun updateEmployeeId(id: String) {
+        _uiState.update { it.copy(employeeId = id) }
+    }
+
+    fun updateDepartment(dept: String) {
+        _uiState.update { it.copy(department = dept) }
+    }
+
+    fun updateDate(date: String) {
+        _uiState.update { it.copy(dateOfRequest = date) }
+    }
+
+    fun updateProjectType(type: String) {
+        _uiState.update { it.copy(projectType = type) }
+    }
+
+    fun updateProjectCode(code: String) {
+        _uiState.update { it.copy(projectCode = code) }
+    }
+
+    fun updateDestinationSite(site: String) {
+        _uiState.update { it.copy(destinationSite = site) }
+    }
+
+    fun updateCategoryFilter(category: String) {
+        _uiState.update { it.copy(selectedCategory = category) }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
 
     fun updateItemQuantity(itemId: String, isAdd: Boolean) {
         _uiState.update { state ->
@@ -147,27 +174,53 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
         viewModelScope.launch {
             try {
                 delay(1000)
-                // MENYESUAIKAN DENGAN PARAMETER SUPPLYITEM.KT MILIK ANDA
+
+                // 1. Ambil daftar barang yang kuantitasnya lebih dari 0
+                val requestedItems = currentState.catalogItems.filter { it.reqQty > 0 }
+
+                // 2. Hitung total kuantitas dari semua barang yang dipilih
+                val totalQuantity = if (requestedItems.isNotEmpty()) {
+                    requestedItems.sumOf { it.reqQty }
+                } else {
+                    1 // Fallback minimal 1 jika entah bagaimana kosong
+                }
+
+                // 3. Buat nama pengajuan yang lebih dinamis berdasarkan barang yang dipilih
+                val dynamicName = if (requestedItems.isNotEmpty()) {
+                    if (requestedItems.size > 1) {
+                        "${requestedItems.first().name} & ${requestedItems.size - 1} lainnya"
+                    } else {
+                        requestedItems.first().name
+                    }
+                } else {
+                    "Project: ${currentState.projectType} Requisition"
+                }
+
                 val newItem = SupplyItem(
                     id = 0L,
                     partCode = currentState.projectCode,
-                    name = "Project: ${currentState.projectType} Requisition",
+                    name = dynamicName, // NAMA SEKARANG DINAMIS
                     category = PartCategory.INFRASTRUCTURE,
-                    quantity = 1,
+                    quantity = totalQuantity, // KUANTITAS SEKARANG MENGAMBIL DARI INPUTAN
                     unit = "Unit",
                     supplier = "Internal Depo",
                     status = SupplyStatus.PENDING,
                     priority = Priority.HIGH,
                     documentRef = null,
                     notes = "",
-                    createdAt = Clock.System.now(), // Gunakan Instant langsung
-                    updatedAt = Clock.System.now()  // Gunakan Instant langsung
+                    createdAt = Clock.System.now(),
+                    updatedAt = Clock.System.now()
                 )
                 repository.insertItem(newItem)
                 repository.deleteDraft(currentDraftId)
                 _uiState.update { it.copy(isSubmitting = false, submitSuccess = true) }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isSubmitting = false, errorMessage = "Gagal: ${e.message}") }
+                _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        errorMessage = "Gagal: ${e.message}"
+                    )
+                }
             }
         }
     }

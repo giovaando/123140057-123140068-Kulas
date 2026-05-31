@@ -219,7 +219,7 @@ fun StaffRequestsTab(allItems: List<SupplyItem>, allDrafts: List<DraftItem>, onR
     val filteredItems = when (selectedSubTab) {
         0 -> allItems
         2 -> allItems.filter { it.status.name == "PENDING" }
-        3 -> allItems.filter { it.status.name == "APPROVED" || it.status.name == "REJECTED" }
+        3 -> allItems.filter { it.status.name == "VERIFIED" || it.status.name == "REJECTED" }
         else -> allItems
     }
 
@@ -263,7 +263,7 @@ fun StaffInventoryTab(allItems: List<SupplyItem>) {
     var selectedCategory by remember { mutableStateOf("All") }
     val categories = listOf("All", "Infrastructure", "Spare Parts", "Tools")
 
-    val approvedItems = allItems.filter { it.status.name == "APPROVED" }
+    val approvedItems = allItems.filter { it.status.name == "VERIFIED" }
     val filteredItems = if (selectedCategory == "All") approvedItems
     else approvedItems.filter { it.category.name.replace("_", " ").equals(selectedCategory, ignoreCase = true) }
 
@@ -296,11 +296,11 @@ fun StaffInventoryTab(allItems: List<SupplyItem>) {
 @Composable
 fun StaffHistoryTab(allItems: List<SupplyItem>) {
     var selectedFilter by remember { mutableStateOf("All Requests") }
-    val filters = listOf("All Requests", "Pending", "Approved", "Rejected")
+    val filters = listOf("All Requests", "Pending", "Verified", "Rejected")
 
     val filteredItems = when (selectedFilter) {
         "Pending" -> allItems.filter { it.status.name == "PENDING" }
-        "Approved" -> allItems.filter { it.status.name == "APPROVED" }
+        "Verified" -> allItems.filter { it.status.name == "VERIFIED" }
         "Rejected" -> allItems.filter { it.status.name == "REJECTED" }
         else -> allItems
     }
@@ -372,7 +372,7 @@ fun HistoryCard(item: SupplyItem) {
                 }
 
                 val (bgStatusColor, textStatusColor, dotColor) = when (item.status.name) {
-                    "APPROVED" -> Triple(Color(0xFFECFDF5), SafeGreen, SafeGreen)
+                    "VERIFIED" -> Triple(Color(0xFFECFDF5), SafeGreen, SafeGreen)
                     "PENDING" -> Triple(Color(0xFFFFFBEB), Color(0xFFD97706), Color(0xFFF59E0B))
                     "REJECTED" -> Triple(Color(0xFFFEF2F2), CriticalRed, CriticalRed)
                     else -> Triple(Color(0xFFF3F4F6), Color.Gray, Color.DarkGray)

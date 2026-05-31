@@ -1,20 +1,27 @@
 package com.example.raillog.presentation.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+
 import com.example.raillog.presentation.screens.welcome.WelcomeScreen
 import com.example.raillog.presentation.screens.login.LoginScreen
 import com.example.raillog.presentation.screens.staff_main.StaffMainScreen
+import com.example.raillog.presentation.screens.requisition.RequisitionScreen
+import com.example.raillog.presentation.screens.admin_main.AdminMainScreen
+import com.example.raillog.presentation.screens.admin_main.VerificationDetailScreen
 import com.example.raillog.presentation.screens.home.HomeScreen
 import com.example.raillog.presentation.screens.addsupply.AddSupplyScreen
 import com.example.raillog.presentation.screens.detail.SupplyDetailScreen
 import com.example.raillog.presentation.screens.ai.AIAssistantScreen
-import com.example.raillog.presentation.screens.requisition.RequisitionScreen
 
 @Composable
 fun AppNavHost(
@@ -26,6 +33,10 @@ fun AppNavHost(
         startDestination = Route.Welcome,
         modifier = modifier
     ) {
+        // ==========================================
+        // 1. ALUR OTENTIKASI
+        // ==========================================
+
         composable<Route.Welcome> {
             WelcomeScreen(
                 onNavigateToLogin = {
@@ -38,35 +49,41 @@ fun AppNavHost(
 
         composable<Route.Login> {
             LoginScreen(
-                onNavigateToHome = {
-                    navController.navigate(Route.StaffMain) {
-                        popUpTo(Route.Login) { inclusive = true }
+                onLoginSuccess = { role ->
+                    // Membaca peran pengguna dari LoginScreen
+                    if (role == "admin") {
+                        navController.navigate(Route.AdminMain) {
+                            popUpTo(Route.Login) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate(Route.StaffMain) {
+                            popUpTo(Route.Login) { inclusive = true }
+                        }
                     }
                 }
             )
         }
 
-        // --- Rute Baru untuk Staff Gudang ---
+        // ==========================================
+        // 2. ALUR STAF GUDANG
+        // ==========================================
+
         composable<Route.StaffMain> {
             StaffMainScreen(
                 onNavigateToNewRequisition = {
-                    // Jika bikin baru, draftId-nya kosong
                     navController.navigate(Route.RequisitionWizard(draftId = null))
                 },
                 onNavigateToResumeDraft = { draftId ->
-                    // Jika melanjutkan, kirimkan ID draft-nya
                     navController.navigate(Route.RequisitionWizard(draftId = draftId))
                 }
             )
         }
 
-        // --- Rute Form 5 Langkah ---
         composable<Route.RequisitionWizard> { backStackEntry ->
-            // Menangkap parameter dari URL / Route
+            // Mengambil draftId (jika ada) dari rute
             val route = backStackEntry.toRoute<Route.RequisitionWizard>()
-
             RequisitionScreen(
-                draftId = route.draftId, // Kirimkan data yang ditangkap ke dalam Screen
+                draftId = route.draftId,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToHome = {
                     navController.navigate(Route.StaffMain) {
@@ -76,47 +93,45 @@ fun AppNavHost(
             )
         }
 
-        // --- Rute Lama ---
+        // ==========================================
+        // 3. ALUR ADMIN LOGISTIK
+        // ==========================================
+
+        composable<Route.AdminMain> {
+            AdminMainScreen(
+                onNavigateToVerificationDetail = { reqId ->
+                    navController.navigate(Route.VerificationDetail(reqId))
+                }
+            )
+        }
+
+        composable<Route.VerificationDetail> { backStackEntry ->
+            // Mengambil requisitionId spesifik yang diklik oleh Admin
+            val route = backStackEntry.toRoute<Route.VerificationDetail>()
+            VerificationDetailScreen(
+                requisitionId = route.requisitionId,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        // ==========================================
+        // 4. RUTE LAWAS (Jika masih digunakan)
+        // ==========================================
+
         composable<Route.Home> {
-            HomeScreen(
-                onNavigateToAddNote = {
-                    navController.navigate(Route.AddSupply(null))
-                },
-                onNavigateToDetail = { id ->
-                    navController.navigate(Route.SupplyDetail(id))
-                },
-                onNavigateToAI = {
-                    navController.navigate(Route.AIAssistant(null, null))
-                }
-            )
+            HomeScreen({}, {}, {})
         }
 
-        composable<Route.AddSupply> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.AddSupply>()
-            AddSupplyScreen(
-                itemId = route.itemId,
-                onNavigateBack = { navController.popBackStack() }
-            )
+        composable<Route.AddSupply> {
+            AddSupplyScreen(null, {})
         }
 
-        composable<Route.SupplyDetail> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.SupplyDetail>()
-            SupplyDetailScreen(
-                itemId = route.itemId,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToEdit = { id ->
-                    navController.navigate(Route.AddSupply(id))
-                }
-            )
+        composable<Route.SupplyDetail> {
+            SupplyDetailScreen(0L, {}, {})
         }
 
-        composable<Route.AIAssistant> { backStackEntry ->
-            val route = backStackEntry.toRoute<Route.AIAssistant>()
-            AIAssistantScreen(
-                noteId = route.itemId,
-                initialText = route.initialText,
-                onNavigateBack = { navController.popBackStack() }
-            )
+        composable<Route.AIAssistant> {
+            AIAssistantScreen(null, null, {})
         }
     }
 }

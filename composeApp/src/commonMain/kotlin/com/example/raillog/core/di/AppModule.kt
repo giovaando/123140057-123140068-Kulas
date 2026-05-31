@@ -12,6 +12,8 @@ import com.example.raillog.data.repository.SupplyRepositoryImpl
 import com.example.raillog.domain.repository.AIRepository
 import com.example.raillog.domain.repository.SupplyRepository
 import com.example.raillog.presentation.screens.addsupply.AddSupplyViewModel
+import com.example.raillog.presentation.screens.admin_main.AdminMainViewModel
+import com.example.raillog.presentation.screens.admin_main.VerificationDetailViewModel
 import com.example.raillog.presentation.screens.ai.AIAssistantViewModel
 import com.example.raillog.presentation.screens.detail.SupplyDetailViewModel
 import com.example.raillog.presentation.screens.home.HomeViewModel
@@ -72,6 +74,8 @@ val viewModelModule = module {
     viewModelOf(::LoginViewModel)
     viewModelOf(::RequisitionViewModel)
     viewModelOf(::StaffMainViewModel)
+    viewModelOf(::AdminMainViewModel)
+    viewModelOf(::VerificationDetailViewModel)
 }
 
 // ==================== SHARED MODULES ====================
