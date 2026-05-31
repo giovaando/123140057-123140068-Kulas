@@ -9,17 +9,20 @@ sealed interface Route {
     data object Login : Route
     @Serializable
     data object StaffMain : Route
+
+    // UBAH DI SINI: Sekarang rute ini bisa menerima parameter draftId
     @Serializable
-    data object RequisitionWizard : Route
+    data class RequisitionWizard(val draftId: String? = null) : Route
+
     @Serializable
     data object Home : Route
-    
+
     @Serializable
     data class AddSupply(val itemId: Long? = null) : Route
-    
+
     @Serializable
     data class SupplyDetail(val itemId: Long) : Route
-    
+
     @Serializable
     data class AIAssistant(
         val itemId: Long? = null,
