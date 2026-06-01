@@ -16,12 +16,14 @@ import com.example.raillog.presentation.screens.welcome.WelcomeScreen
 import com.example.raillog.presentation.screens.login.LoginScreen
 import com.example.raillog.presentation.screens.staff_main.StaffMainScreen
 import com.example.raillog.presentation.screens.requisition.RequisitionScreen
+import com.example.raillog.presentation.screens.requisition.RequisitionViewModel
 import com.example.raillog.presentation.screens.admin_main.AdminMainScreen
 import com.example.raillog.presentation.screens.admin_main.VerificationDetailScreen
 import com.example.raillog.presentation.screens.home.HomeScreen
 import com.example.raillog.presentation.screens.addsupply.AddSupplyScreen
 import com.example.raillog.presentation.screens.detail.SupplyDetailScreen
 import com.example.raillog.presentation.screens.ai.AIAssistantScreen
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun AppNavHost(
@@ -80,12 +82,11 @@ fun AppNavHost(
         }
 
         composable<Route.RequisitionWizard> { backStackEntry ->
-            // Mengambil draftId (jika ada) dari rute
-            val route = backStackEntry.toRoute<Route.RequisitionWizard>()
+            val viewModel: RequisitionViewModel = koinViewModel()
             RequisitionScreen(
-                draftId = route.draftId,
+                viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToHome = {
+                onSubmissionSuccess = {
                     navController.navigate(Route.StaffMain) {
                         popUpTo(Route.StaffMain) { inclusive = true }
                     }
