@@ -2,85 +2,80 @@ package com.example.raillog.presentation.screens.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.raillog.data.local.datastore.DataStoreFactory
 import com.example.raillog.data.local.datastore.UserPreferences
+import com.example.raillog.data.local.datastore.create
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
-class LoginViewModel(
-    private val userPreferences: UserPreferences
-) : ViewModel() {
+object GlobalSessionManager {
+    private var instance: UserPreferences? = null
+    fun getPrefs(factory: DataStoreFactory): UserPreferences {
+        if (instance == null) {
+            instance = UserPreferences(factory.create())
+        }
+        return instance!!
+    }
+}
 
+data class LoginUiState(
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val loginSuccess: Boolean = false,
+    val role: String = ""
+)
+
+class LoginViewModel(private val dataStoreFactory: DataStoreFactory) : ViewModel() {
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
-    fun onEvent(event: LoginEvent) {
-        when (event) {
-            is LoginEvent.UsernameChanged -> _uiState.value = _uiState.value.copy(username = event.username, errorMessage = null)
-            is LoginEvent.PasswordChanged -> _uiState.value = _uiState.value.copy(password = event.password, errorMessage = null)
-            is LoginEvent.SubmitLogin -> performLogin(event.onNavigateToHome)
-        }
-    }
+    private val userPreferences = GlobalSessionManager.getPrefs(dataStoreFactory)
 
-    private fun performLogin(onNavigateToHome: () -> Unit) {
-        val currentUsername = _uiState.value.username.trim()
-        val currentPassword = _uiState.value.password
-
-        if (currentUsername.isEmpty() || currentPassword.isEmpty()) {
-            _uiState.value = _uiState.value.copy(errorMessage = "Username dan Password tidak boleh kosong!")
-            return
-        }
-
-        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-
+    fun login(usernameInput: String, passwordInput: String) {
         viewModelScope.launch {
-            // Simulasi jeda waktu komunikasi dengan server backend (1.5 detik)
-            delay(1500)
+            if (usernameInput.isBlank() || passwordInput.isBlank()) {
+                _uiState.value = _uiState.value.copy(error = "Username dan Password wajib diisi!")
+                return@launch
+            }
 
-            // Logika simulasi Backend untuk menentukan Role
-            val role = authenticateBackend(currentUsername, currentPassword)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            delay(1000)
 
-            if (role != null) {
-                // Login sukses, simpan role ke DataStore (Memori HP)
-                userPreferences.setUserRole(role)
-                _uiState.value = _uiState.value.copy(isLoading = false)
-                onNavigateToHome()
-            } else {
-                // Login gagal
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = "Username atau Password salah!"
-                )
+            // Ambil data akun yang didaftarkan manual
+            val registeredStaffUser = userPreferences.staffUsername.first()
+            val registeredStaffPass = userPreferences.staffPassword.first()
+
+            when {
+                // 1. PRIORITASKAN AKUN BARU (Akun yang baru dibuat di RegisterScreen)
+                registeredStaffUser.isNotEmpty() && usernameInput == registeredStaffUser && passwordInput == registeredStaffPass -> {
+                    userPreferences.setUserRole("staff")
+                    _uiState.value = _uiState.value.copy(isLoading = false, loginSuccess = true, role = "staff")
+                }
+                // 2. Akun Admin (Hardcoded)
+                usernameInput == "admin" && passwordInput == "raillog123" -> {
+                    userPreferences.setUserRole("admin")
+                    _uiState.value = _uiState.value.copy(isLoading = false, loginSuccess = true, role = "admin")
+                }
+                // 3. Fallback Akun Operator Default
+                usernameInput == "operator" && passwordInput == "raillog123" -> {
+                    userPreferences.setUserRole("staff")
+                    _uiState.value = _uiState.value.copy(isLoading = false, loginSuccess = true, role = "staff")
+                }
+                else -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = "Username atau Password salah!"
+                    )
+                }
             }
         }
     }
 
-    // --- SIMULASI DATABASE BACKEND ---
-    private fun authenticateBackend(username: String, pass: String): String? {
-        // Semua akun menggunakan password yang sama untuk kemudahan testing
-        if (pass != "raillog123") return null
-
-        return when (username.lowercase()) {
-            "operator" -> "Operator Gudang"
-            "manager" -> "Manajer Logistik"
-            "inspektor" -> "Inspektor Teknis"
-            else -> null // Username tidak ditemukan
-        }
+    fun resetState() {
+        _uiState.value = LoginUiState()
     }
-}
-
-// --- STATE & EVENTS ---
-data class LoginUiState(
-    val username: String = "",
-    val password: String = "",
-    val isLoading: Boolean = false,
-    val errorMessage: String? = null
-)
-
-sealed interface LoginEvent {
-    data class UsernameChanged(val username: String) : LoginEvent
-    data class PasswordChanged(val password: String) : LoginEvent
-    data class SubmitLogin(val onNavigateToHome: () -> Unit) : LoginEvent
 }

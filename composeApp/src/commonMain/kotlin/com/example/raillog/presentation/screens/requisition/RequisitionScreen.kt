@@ -104,7 +104,11 @@ fun RequisitionScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { if (currentStep > 1) currentStep-- else onNavigateBack() }) {
+                    IconButton(onClick = {
+                        // [TAMBAHAN] Simpan draf saat menekan tombol back di AppBar
+                        viewModel.saveDraftAutomatically(currentStep)
+                        if (currentStep > 1) currentStep-- else onNavigateBack()
+                    }) {
                         Icon(if (currentStep in 1..2) Icons.Default.Close else Icons.Default.ArrowBack, "Back", tint = RailBlue)
                     }
                 },
@@ -259,7 +263,6 @@ private fun Step1Identity(uiState: RequisitionFormState, viewModel: RequisitionV
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
-            // Teks Header disesuaikan, karena data mungkin sudah diisi AI
             Text("Review Identity", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = RailBlue)
             Text("Please review the auto-filled identity details below.", color = Color.Gray, fontSize = 14.sp)
             Spacer(modifier = Modifier.height(24.dp))
@@ -550,14 +553,26 @@ private fun BottomActionBar(currentStep: Int, isSubmitting: Boolean, onNext: () 
 
             if (currentStep in 2..5) {
                 OutlinedButton(
-                    onClick = { viewModel.saveDraftAutomatically(currentStep); onBack() },
+                    onClick = {
+                        // [TAMBAHAN] Simpan draf saat mundur
+                        viewModel.saveDraftAutomatically(currentStep)
+                        onBack()
+                    },
                     modifier = Modifier.weight(1f).height(50.dp), shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, Color.LightGray)
                 ) { Text("Back", color = RailBlue, fontWeight = FontWeight.Bold) }
                 Spacer(modifier = Modifier.width(16.dp))
             }
 
             Button(
-                onClick = { if (currentStep == 5) onSubmit() else { viewModel.saveDraftAutomatically(currentStep + 1); onNext() } },
+                onClick = {
+                    if (currentStep == 5) {
+                        onSubmit()
+                    } else {
+                        // [TAMBAHAN] Simpan draf saat maju ke step berikutnya
+                        viewModel.saveDraftAutomatically(currentStep)
+                        onNext()
+                    }
+                },
                 modifier = Modifier.weight(2f).height(50.dp), enabled = !isSubmitting,
                 colors = ButtonDefaults.buttonColors(containerColor = RailBlue), shape = RoundedCornerShape(8.dp)
             ) {

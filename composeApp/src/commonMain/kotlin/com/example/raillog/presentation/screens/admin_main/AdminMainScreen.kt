@@ -1,44 +1,55 @@
 package com.example.raillog.presentation.screens.admin_main
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.raillog.domain.model.SupplyItem
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import org.koin.compose.viewmodel.koinViewModel
-import kotlin.math.absoluteValue
 
-val RailBlue = Color(0xFF193255)
-val RailLightBlue = Color(0xFFF0F4FA)
-val SafeGreen = Color(0xFF10B981)
-val CriticalRed = Color(0xFFEF4444)
+// ==================== Warna dari DESIGN.md ====================
+val BrandNavy = Color(0xFF00236F)
+val SuccessGreen = Color(0xFF10B981)
+val SurfaceBg = Color(0xFFF7F9FB)
+val BorderColor = Color(0xFFE2E8F0)
+val TextMuted = Color(0xFF64748B)
+val ErrorRed = Color(0xFFBA1A1A)
+val LowConfidenceBg = Color(0xFFFFDAD6)
+val HighConfidenceBg = Color(0xFFDCE1FF)
 
-sealed class AdminBottomNavItem(val title: String, val icon: ImageVector) {
-    data object Inventory : AdminBottomNavItem("Inventory", Icons.Default.Inventory2)
-    data object Verification : AdminBottomNavItem("Verification", Icons.Default.FactCheck)
-    data object Operations : AdminBottomNavItem("Operations", Icons.Default.Dashboard)
-}
+// ==================== Helper Models & Functions ====================
+data class SystemAlert(
+    val id: Int,
+    val title: String,
+    val timeAgo: String,
+    val description: String
+)
 
 fun formatAdminTimestamp(millis: Long): String {
     val now = Clock.System.now().toEpochMilliseconds()
@@ -52,437 +63,564 @@ fun formatAdminTimestamp(millis: Long): String {
     }
 }
 
+// ==================== DATA MODELS UNTUK REQUISITION DETAIL ====================
+data class Requisition(
+    val id: Long,
+    val requisitionId: String,
+    val requesterName: String,
+    val date: String,
+    val items: List<RequisitionItem>,
+    val status: RequisitionStatus,
+    val notes: String? = null
+)
+
+data class RequisitionItem(
+    val name: String,
+    val sku: String,
+    val requestedQuantity: Int,
+    val approvedQuantity: Int? = null
+)
+
+enum class RequisitionStatus {
+    PENDING, VERIFIED, REJECTED
+}
+
+interface RequisitionRepository {
+    suspend fun getRequisitionById(id: Long): Requisition?
+}
+
+// ==================== VIEWMODEL UNTUK DETAIL ====================
+class RequisitionDetailViewModel(
+    private val repository: RequisitionRepository
+) : ViewModel() {
+    private val _requisition = MutableStateFlow<Requisition?>(null)
+    val requisition: StateFlow<Requisition?> = _requisition.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    fun loadRequisition(id: Long) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _requisition.value = repository.getRequisitionById(id)
+            _isLoading.value = false
+        }
+    }
+
+    fun approve() {
+        // TODO: Panggil API/DB Approve
+    }
+
+    fun revise() {
+        // TODO: Panggil API/DB Revise
+    }
+}
+
+// ==================== SCREEN UTAMA (TABS) ====================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminMainScreen(
     viewModel: AdminMainViewModel = koinViewModel(),
-    onNavigateToVerificationDetail: (Long) -> Unit
+    onNavigateToVerificationDetail: (Long) -> Unit,
+    onLogout: () -> Unit
 ) {
+    var selectedTab by remember { mutableIntStateOf(1) }
+
     val pendingItems by viewModel.pendingRequisitions.collectAsState()
     val allItems by viewModel.allItems.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(1) }
-    val tabs = listOf(AdminBottomNavItem.Inventory, AdminBottomNavItem.Verification, AdminBottomNavItem.Operations)
-
     Scaffold(
+        containerColor = SurfaceBg,
         topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(32.dp).background(RailBlue, CircleShape), contentAlignment = Alignment.Center) {
-                            Text("AL", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text("RailLog Nusantara", fontWeight = FontWeight.Bold, color = RailBlue)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = SurfaceBg,
+                shadowElevation = 0.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(modifier = Modifier.size(36.dp).background(Color.LightGray, CircleShape))
+                    Text(
+                        text = "RailLog Nusantara",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = BrandNavy,
+                        modifier = Modifier.padding(start = 12.dp).weight(1f)
+                    )
+                    IconButton(onClick = onLogout) {
+                        Icon(Icons.Default.Logout, contentDescription = "Logout", tint = ErrorRed)
                     }
-                },
-                actions = {
-                    IconButton(onClick = { }) { Icon(Icons.Default.NotificationsNone, contentDescription = "Alerts", tint = RailBlue) }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
+                }
+            }
         },
         bottomBar = {
-            NavigationBar(containerColor = Color.White, tonalElevation = 8.dp) {
-                tabs.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title, fontSize = 10.sp) },
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = RailBlue, selectedTextColor = RailBlue, indicatorColor = RailLightBlue)
-                    )
+            Surface(
+                modifier = Modifier.border(BorderStroke(1.dp, BorderColor)),
+                color = Color.White,
+                tonalElevation = 0.dp
+            ) {
+                NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
+                    val items = listOf("Inventory", "Verification", "Operations")
+                    items.forEachIndexed { index, item ->
+                        NavigationBarItem(
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            label = { Text(item, fontSize = 12.sp, fontWeight = FontWeight.Medium) },
+                            icon = {
+                                Icon(
+                                    when (index) {
+                                        0 -> Icons.Default.Inventory
+                                        1 -> Icons.Default.FactCheck
+                                        else -> Icons.Default.Dashboard
+                                    },
+                                    contentDescription = null
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = BrandNavy,
+                                selectedTextColor = BrandNavy,
+                                unselectedIconColor = TextMuted,
+                                unselectedTextColor = TextMuted,
+                                indicatorColor = BrandNavy.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
                 }
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues).background(Color(0xFFFAFAFA))) {
+        Box(modifier = Modifier.padding(paddingValues)) {
             when (selectedTab) {
-                0 -> AdminInventoryTab(allItems)
-                1 -> AdminVerificationTab(pendingItems, onNavigateToVerificationDetail)
-                2 -> AdminOperationsTab(allItems, pendingItems.size)
+                0 -> InventoryTab(allItems)
+                1 -> VerificationTab(viewModel, onNavigateToVerificationDetail)
+                2 -> OperationsTab(allItems, pendingItems.size)
             }
         }
     }
 }
 
-// ==========================================
-// 1. TAB INVENTORY (DATA BENAR: INFRA, SPARE PARTS, TOOLS)
-// ==========================================
+// ==================== INVENTORY TAB ====================
 @Composable
-fun AdminInventoryTab(allItems: List<SupplyItem>) {
+fun InventoryTab(allItems: List<SupplyItem>) {
+    val maxCapacity = 1000
     val verifiedItems = allItems.filter { it.status.name == "VERIFIED" }
 
-    // Sesuaikan dengan data riil dari Staf Gudang
-    val infraQty = verifiedItems.filter { it.category.name.contains("INFRA", ignoreCase = true) }.sumOf { it.quantity }
-    val spareQty = verifiedItems.filter { it.category.name.contains("SPARE", ignoreCase = true) }.sumOf { it.quantity }
-    val toolsQty = verifiedItems.filter { it.category.name.contains("TOOL", ignoreCase = true) }.sumOf { it.quantity }
+    val infraUsed = verifiedItems.filter { it.category.name.contains("INFRA", true) }.sumOf { it.quantity }
+    val spareUsed = verifiedItems.filter { it.category.name.contains("SPARE", true) }.sumOf { it.quantity }
+    val toolsUsed = verifiedItems.filter { it.category.name.contains("TOOL", true) }.sumOf { it.quantity }
 
-    val maxCapacity = 1000f
+    val infraLeft = (maxCapacity - infraUsed).coerceAtLeast(0)
+    val spareLeft = (maxCapacity - spareUsed).coerceAtLeast(0)
+    val toolsLeft = (maxCapacity - toolsUsed).coerceAtLeast(0)
 
-    val infraProgress = (infraQty / maxCapacity).coerceIn(0f, 1f)
-    val spareProgress = (spareQty / maxCapacity).coerceIn(0f, 1f)
-    val toolsProgress = (toolsQty / maxCapacity).coerceIn(0f, 1f)
+    val infraProgress = (infraLeft.toFloat() / maxCapacity).coerceIn(0f, 1f)
+    val spareProgress = (spareLeft.toFloat() / maxCapacity).coerceIn(0f, 1f)
+    val toolsProgress = (toolsLeft.toFloat() / maxCapacity).coerceIn(0f, 1f)
 
-    val groupedInventory = verifiedItems.groupBy { it.name }.map { (name, items) ->
-        val totalQty = items.sumOf { it.quantity }
-        val partCode = items.first().partCode
-        Triple(name, partCode, totalQty)
-    }
+    val urgentItems = mutableListOf<Triple<String, String, String>>()
+    if (infraProgress < 0.2f) urgentItems.add(Triple("Infrastructure Items", "CAT-INFRA", "$infraLeft Units Left"))
+    if (spareProgress < 0.2f) urgentItems.add(Triple("Spare Parts", "CAT-SPARE", "$spareLeft Units Left"))
+    if (toolsProgress < 0.2f) urgentItems.add(Triple("Tools & Equipment", "CAT-TOOL", "$toolsLeft Units Left"))
 
-    val urgentItems = groupedInventory.filter { it.third < 50 }.sortedBy { it.third }.take(3)
-    val scrollState = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text("Inventory Overview", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = RailBlue)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        InventoryProgressCard("Infrastructure", infraProgress, infraQty, maxCapacity.toInt(), RailBlue)
-        Spacer(modifier = Modifier.height(12.dp))
-        InventoryProgressCard("Spare Parts", spareProgress, spareQty, maxCapacity.toInt(), Color(0xFF4C51BF))
-        Spacer(modifier = Modifier.height(12.dp))
-        InventoryProgressCard("Tools", toolsProgress, toolsQty, maxCapacity.toInt(), CriticalRed, isWarning = toolsProgress > 0.85f)
-
-        Spacer(modifier = Modifier.height(24.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Urgent Replenishments", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = Color(0xFF0F172A))
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (urgentItems.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                Text("Semua stok dalam keadaan aman.", color = Color.Gray)
-            }
-        } else {
+        item { Text("Inventory Overview", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = BrandNavy) }
+        item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(Color.White),
+                border = BorderStroke(1.dp, BorderColor)
             ) {
-                Column {
-                    urgentItems.forEachIndexed { index, item ->
-                        UrgentItemRow(item.first, item.second.ifEmpty { "SKU-N/A" }, "${item.third} Units Left")
-                        if (index < urgentItems.size - 1) {
-                            HorizontalDivider(color = Color(0xFFE2E8F0))
-                        }
-                    }
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    InventoryProgressItem("Infrastructure", infraProgress, isWarning = infraProgress < 0.2f)
+                    InventoryProgressItem("Rolling Stock", spareProgress, isWarning = spareProgress < 0.2f)
+                    InventoryProgressItem("Electronics", toolsProgress, isWarning = toolsProgress < 0.2f)
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(80.dp))
+        if (urgentItems.isNotEmpty()) {
+            item { Text("Urgent Replenishments", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = BrandNavy, modifier = Modifier.padding(top = 8.dp)) }
+            items(urgentItems) { (name, sku, stock) ->
+                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(Color.White), border = BorderStroke(1.dp, BorderColor)) {
+                    Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column { Text(name, fontWeight = FontWeight.Medium, color = BrandNavy); Text(sku, fontSize = 12.sp, color = TextMuted) }
+                        Text(stock, color = ErrorRed, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun InventoryProgressCard(title: String, progress: Float, currentQty: Int, maxQty: Int, color: Color, isWarning: Boolean = false) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = if (isWarning) Color(0xFFFEF2F2) else Color.White),
-        border = BorderStroke(1.dp, if (isWarning) CriticalRed else Color(0xFFE2E8F0)),
-        shape = RoundedCornerShape(8.dp)
+fun InventoryProgressItem(title: String, progress: Float, isWarning: Boolean = false) {
+    Column {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(title, fontWeight = FontWeight.Medium, color = BrandNavy)
+            Text("${(progress * 100).toInt()}%", color = if (isWarning) ErrorRed else TextMuted, fontWeight = FontWeight.Medium)
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)), color = if (isWarning) ErrorRed else BrandNavy, trackColor = BorderColor)
+    }
+}
+
+// ==================== VERIFICATION TAB ====================
+@Composable
+fun VerificationTab(viewModel: AdminMainViewModel, onItemClick: (Long) -> Unit) {
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedFilter by viewModel.selectedFilter.collectAsState()
+    val filteredItems by viewModel.filteredPendingItems.collectAsState()
+    val filterOptions = listOf("All", "High Confidence", "Low Confidence")
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = if (isWarning) CriticalRed else Color(0xFF0F172A))
-                    if (isWarning) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(Icons.Default.WarningAmber, contentDescription = null, tint = CriticalRed, modifier = Modifier.size(16.dp))
-                    }
-                }
-                // Menampilkan Persentase
-                Text("${(progress * 100).toInt()}%", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isWarning) CriticalRed else Color(0xFF64748B))
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            // Menampilkan Angka Riil sebagai Subteks
-            Text("$currentQty / $maxQty Units", fontSize = 12.sp, color = Color(0xFF64748B))
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth().height(12.dp),
-                color = color,
-                trackColor = Color(0xFFE2E8F0),
-                strokeCap = StrokeCap.Round
+        item { Text("Verification Queue", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = BrandNavy) }
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.updateSearchQuery(it) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search by Request Name...", color = TextMuted) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextMuted) },
+                shape = RoundedCornerShape(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BrandNavy, unfocusedBorderColor = BorderColor, focusedTextColor = BrandNavy),
+                singleLine = true
             )
         }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                filterOptions.forEachIndexed { index, label ->
+                    FilterChip(
+                        selected = selectedFilter == index,
+                        onClick = { viewModel.updateSelectedFilter(index) },
+                        label = { Text(label, fontSize = 13.sp) },
+                        modifier = Modifier.height(36.dp),
+                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = BrandNavy.copy(alpha = 0.1f), selectedLabelColor = BrandNavy),
+                        border = BorderStroke(1.dp, if (selectedFilter == index) BrandNavy else BorderColor)
+                    )
+                }
+            }
+        }
+
+        items(filteredItems) { item ->
+            VerificationCard(item, onItemClick)
+        }
+
+        if (filteredItems.isEmpty()) {
+            item {
+                Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Text("No documents found.", color = TextMuted)
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun UrgentItemRow(title: String, sku: String, status: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+fun VerificationCard(item: SupplyItem, onClick: (Long) -> Unit) {
+    val confidence = 75 + (item.id % 25).toInt()
+    val isHighConfidence = confidence >= 85
+
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onClick(item.id) },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(Color.White),
+        border = BorderStroke(1.dp, BorderColor)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF0F172A))
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(sku, fontSize = 12.sp, color = Color(0xFF64748B))
-        }
-        Box(
-            modifier = Modifier.background(Color(0xFFFEE2E2), RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
-        ) {
-            Text(status, color = CriticalRed, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-// ==========================================
-// 2. TAB VERIFICATION
-// ==========================================
-@Composable
-fun AdminVerificationTab(pendingItems: List<SupplyItem>, onNavigateToDetail: (Long) -> Unit) {
-    var selectedFilter by remember { mutableStateOf("All") }
-    val filters = listOf("All", "High Confidence", "Low Confidence", "Flagged")
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = "Verification Queue",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = RailBlue,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        )
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(filters) { filter ->
-                val isSelected = selectedFilter == filter
-                Box(
-                    modifier = Modifier
-                        .clickable { selectedFilter = filter }
-                        .background(if (isSelected) RailBlue else Color.White, RoundedCornerShape(8.dp))
-                        .border(1.dp, if (isSelected) RailBlue else Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("REQ-${item.id.toString().padStart(4, '0')}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = BrandNavy)
+                Text(formatAdminTimestamp(item.createdAt.toEpochMilliseconds()), fontSize = 12.sp, color = TextMuted)
+            }
+            Text(item.name, fontWeight = FontWeight.Medium, fontSize = 15.sp, color = BrandNavy.copy(alpha = 0.8f))
+            Text("Requested Quantity: ${item.quantity} | Category: ${item.category.name}", fontSize = 13.sp, color = TextMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("AI Extraction Confidence", fontSize = 12.sp, color = TextMuted)
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isHighConfidence) HighConfidenceBg else LowConfidenceBg,
+                    border = BorderStroke(0.5.dp, if (isHighConfidence) BrandNavy.copy(alpha = 0.3f) else ErrorRed.copy(alpha = 0.3f))
                 ) {
-                    Text(
-                        text = filter,
-                        color = if (isSelected) Color.White else Color(0xFF64748B),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Text("${confidence}%", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = if (isHighConfidence) BrandNavy else ErrorRed)
                 }
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(12.dp))
+// ==================== OPERATIONS TAB ====================
+@Composable
+fun OperationsTab(allItems: List<SupplyItem>, pendingCount: Int) {
+    val verifiedCount = allItems.count { it.status.name == "VERIFIED" }
+    val alerts = remember {
+        listOf(
+            SystemAlert(1, "Database Sync", "10m ago", "Background sync completed successfully."),
+            SystemAlert(2, "System Status", "1h ago", "All nodes operating at optimal capacity.")
+        )
+    }
 
-        LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (pendingItems.isEmpty()) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("Queue is empty.", color = Color.Gray)
+    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        item { Text("Operations Overview", fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = BrandNavy) }
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                OperationsMetricCard("VERIFIED ITEMS", verifiedCount.toString(), trend = "Approved", trendUp = true, modifier = Modifier.weight(1f))
+                OperationsMetricCard("AVG AI CONFIDENCE", "94.2%", subtitle = "Optimal", modifier = Modifier.weight(1f))
+                OperationsMetricCard("PENDING QUEUE", pendingCount.toString(), subtitle = if (pendingCount > 0) "Requires Action" else "All Clear", modifier = Modifier.weight(1f))
+            }
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(Color.White), border = BorderStroke(1.dp, BorderColor)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Verification Accuracy Trend", fontWeight = FontWeight.SemiBold, color = BrandNavy)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(120.dp).border(1.dp, BorderColor, RoundedCornerShape(4.dp)).background(Color(0xFFF8FAFC)), contentAlignment = Alignment.Center) {
+                        Text("Line Chart Visualization Space", color = TextMuted, fontSize = 12.sp)
                     }
                 }
-            } else {
-                items(pendingItems) { item ->
-                    val confidenceScore = 45 + (item.id.hashCode().absoluteValue % 54)
-                    val isHighConfidence = confidenceScore >= 80
-                    val isFlagged = confidenceScore < 60
-
-                    val showItem = when (selectedFilter) {
-                        "High Confidence" -> isHighConfidence
-                        "Low Confidence" -> !isHighConfidence && !isFlagged
-                        "Flagged" -> isFlagged
-                        else -> true
+            }
+        }
+        item { Text("System Alerts", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = BrandNavy) }
+        items(alerts) { alert ->
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(Color.White), border = BorderStroke(1.dp, BorderColor)) {
+                Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Icons.Default.Info, contentDescription = null, tint = BrandNavy, modifier = Modifier.size(20.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(alert.title, fontWeight = FontWeight.Medium, color = BrandNavy)
+                        Text(alert.timeAgo, fontSize = 11.sp, color = TextMuted)
+                        Text(alert.description, fontSize = 13.sp, color = TextMuted, maxLines = 2)
                     }
-                    if (showItem) {
-                        VerificationQueueCard(item, confidenceScore, isHighConfidence, isFlagged) {
-                            onNavigateToDetail(item.id)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OperationsMetricCard(title: String, value: String, subtitle: String? = null, trend: String? = null, trendUp: Boolean = true, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(Color.White), border = BorderStroke(1.dp, BorderColor)) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(title, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = TextMuted, letterSpacing = 0.5.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = BrandNavy)
+            if (subtitle != null) { Text(subtitle, fontSize = 11.sp, color = if (subtitle == "All Clear" || subtitle == "Optimal") SuccessGreen else ErrorRed) }
+            if (trend != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(if (trendUp) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward, contentDescription = null, modifier = Modifier.size(12.dp), tint = if (trendUp) SuccessGreen else ErrorRed)
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(trend, fontSize = 11.sp, color = if (trendUp) SuccessGreen else ErrorRed)
+                }
+            }
+        }
+    }
+}
+
+// ==================== DETAIL VERIFY REQUISITION DENGAN AI ====================
+@Composable
+fun VerifyRequisitionScreen(
+    viewModel: RequisitionDetailViewModel,
+    onApprove: () -> Unit,
+    onRevise: () -> Unit,
+    onBack: () -> Unit
+) {
+    val requisition by viewModel.requisition.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    var isAiAnalyzing by remember { mutableStateOf(false) }
+    var isAiResultReady by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isAiAnalyzing) {
+        if (isAiAnalyzing) {
+            delay(2500L)
+            isAiAnalyzing = false
+            isAiResultReady = true
+        }
+    }
+
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = BrandNavy)
+        }
+        return
+    }
+
+    requisition?.let { req ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(SurfaceBg)
+                .padding(top = 32.dp)
+                .statusBarsPadding()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = BrandNavy)
+                }
+                Text(
+                    text = "Verify Requisition",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = BrandNavy
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = "Requisition ID: ${req.requisitionId}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextMuted
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(Color.White),
+                    border = BorderStroke(1.dp, BorderColor)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Requested Items", fontWeight = FontWeight.Bold, color = BrandNavy)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        req.items.forEach { item ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(item.name, color = BrandNavy, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                                    Text(item.sku, color = TextMuted, fontSize = 12.sp)
+                                }
+                                Text("${item.requestedQuantity} pcs", color = BrandNavy, fontWeight = FontWeight.Bold)
+                            }
+                            HorizontalDivider(color = SurfaceBg)
                         }
                     }
                 }
-            }
-        }
-    }
-}
 
-@Composable
-fun VerificationQueueCard(item: SupplyItem, confidenceScore: Int, isHighConfidence: Boolean, isFlagged: Boolean, onClick: () -> Unit) {
-    val progressColor = when {
-        isHighConfidence -> SafeGreen
-        isFlagged -> CriticalRed
-        else -> Color(0xFFEAB308)
-    }
+                Spacer(modifier = Modifier.height(24.dp))
 
-    Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = if (isFlagged) Color(0xFFFEF2F2) else Color.White),
-        border = BorderStroke(1.dp, if (isFlagged) Color(0xFFFECACA) else Color(0xFFE2E8F0)),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "PRJ-2026-${item.id.toString().padStart(4, '0')}",
-                    color = RailBlue,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.AccessTime, contentDescription = null, tint = Color(0xFF64748B), modifier = Modifier.size(12.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(formatAdminTimestamp(item.createdAt.toEpochMilliseconds()), fontSize = 12.sp, color = Color(0xFF64748B))
-                }
-            }
+                Text("AI Verification Analysis", fontWeight = FontWeight.SemiBold, color = BrandNavy)
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(item.name, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-                if (isFlagged) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Default.Warning, contentDescription = null, tint = CriticalRed, modifier = Modifier.size(16.dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Submission for ${item.category.name.replace("_", " ").lowercase()}.", fontSize = 14.sp, color = Color(0xFF64748B))
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("AI Extraction Confidence", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF64748B))
-                Text("$confidenceScore%", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = progressColor)
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { confidenceScore / 100f },
-                modifier = Modifier.fillMaxWidth().height(8.dp),
-                color = progressColor,
-                trackColor = Color(0xFFE2E8F0),
-                strokeCap = StrokeCap.Round
-            )
-        }
-    }
-}
-
-// ==========================================
-// 3. TAB OPERATIONS
-// ==========================================
-@Composable
-fun AdminOperationsTab(allItems: List<SupplyItem>, pendingCount: Int) {
-    val verifiedCount = allItems.count { it.status.name == "VERIFIED" }
-
-    val dynamicAlerts = remember(allItems) {
-        val alerts = mutableListOf<Triple<String, String, Boolean>>()
-
-        val verifiedItems = allItems.filter { it.status.name == "VERIFIED" }
-        val lowStockCount = verifiedItems.groupBy { it.name }.count { (_, items) -> items.sumOf { it.quantity } < 50 }
-        if (lowStockCount > 0) {
-            alerts.add(Triple("Low Stock Alert", "$lowStockCount part(s) running critically low in inventory. Restock recommended.", true))
-        }
-
-        val highPriorityPending = allItems.count { it.status.name == "PENDING" && (it.priority.name == "HIGH" || it.priority.name == "CRITICAL") }
-        if (highPriorityPending > 0) {
-            alerts.add(Triple("Action Required", "$highPriorityPending high-priority requisition(s) awaiting your verification.", true))
-        }
-
-        val rejectedCount = allItems.count { it.status.name == "REJECTED" }
-        if (rejectedCount > 0) {
-            alerts.add(Triple("Revisions Tracked", "$rejectedCount document(s) sent back to staff for revision.", false))
-        }
-
-        if (alerts.isEmpty()) {
-            alerts.add(Triple("System Normal", "All operational nodes and inventories are stable.", false))
-        }
-
-        alerts
-    }
-
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Operations Overview", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = RailBlue)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFE5E7EB))) {
-            Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column {
-                    Text("TOTAL DOCS VERIFIED", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(verifiedCount.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = RailBlue)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .animateContentSize(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(if (isAiResultReady) HighConfidenceBg else Color.White),
+                    border = BorderStroke(1.dp, if (isAiResultReady) BrandNavy.copy(alpha = 0.3f) else BorderColor)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        when {
+                            !isAiAnalyzing && !isAiResultReady -> {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = "AI", tint = BrandNavy, modifier = Modifier.size(32.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Document is ready for analysis", color = TextMuted, fontSize = 13.sp)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(
+                                    onClick = { isAiAnalyzing = true },
+                                    colors = ButtonDefaults.buttonColors(containerColor = BrandNavy),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Analyze with Gemini", color = Color.White)
+                                }
+                            }
+                            isAiAnalyzing -> {
+                                CircularProgressIndicator(color = BrandNavy, modifier = Modifier.size(32.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("Extracting specs & cross-referencing...", color = BrandNavy, fontWeight = FontWeight.Medium, fontSize = 13.sp)
+                            }
+                            isAiResultReady -> {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Specs Matched", fontWeight = FontWeight.Bold, color = BrandNavy)
+                                    }
+                                    Text("Confidence: 94%", fontWeight = FontWeight.ExtraBold, color = SuccessGreen)
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "AI Summary: All requested quantities align with standard maintenance protocols for Type-B signaling systems. No anomalies detected in supplier SKUs.",
+                                    fontSize = 13.sp,
+                                    color = BrandNavy.copy(alpha = 0.8f),
+                                    lineHeight = 18.sp
+                                )
+                            }
+                        }
                     }
                 }
-                Box(modifier = Modifier.size(48.dp).background(RailLightBlue, RoundedCornerShape(8.dp)))
-            }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.weight(1f))
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFE5E7EB))) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("AVG AI CONFIDENCE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                    Text("94.2%", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = SafeGreen, modifier = Modifier.size(12.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Optimal", fontSize = 12.sp, color = SafeGreen)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onRevise,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp),
+                        enabled = isAiResultReady,
+                        border = BorderStroke(1.dp, if (isAiResultReady) ErrorRed else BorderColor),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Revise")
+                    }
+
+                    Button(
+                        onClick = onApprove,
+                        modifier = Modifier
+                            .weight(2f)
+                            .height(50.dp),
+                        enabled = isAiResultReady,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SuccessGreen,
+                            disabledContainerColor = Color.LightGray
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Approve Request", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
-                Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(SafeGreen))
-            }
-
-            Card(modifier = Modifier.weight(1f), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFE5E7EB))) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("PENDING QUEUE", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
-                    Text(pendingCount.toString(), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = if (pendingCount > 0) CriticalRed else SafeGreen)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(if (pendingCount > 0) Icons.Default.Warning else Icons.Default.CheckCircle, contentDescription = null, tint = if (pendingCount > 0) CriticalRed else SafeGreen, modifier = Modifier.size(12.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(if (pendingCount > 0) "Requires Action" else "All Cleared", fontSize = 12.sp, color = if (pendingCount > 0) CriticalRed else SafeGreen)
-                    }
-                }
-                Box(modifier = Modifier.fillMaxWidth().height(4.dp).background(if (pendingCount > 0) CriticalRed else SafeGreen))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("System Alerts", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFE5E7EB))) {
-            Column {
-                dynamicAlerts.forEachIndexed { index, alert ->
-                    AlertRow(
-                        title = alert.first,
-                        desc = alert.second,
-                        time = "Recent",
-                        isCritical = alert.third
-                    )
-                    if (index < dynamicAlerts.size - 1) {
-                        HorizontalDivider(color = Color(0xFFF3F4F6))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun AlertRow(title: String, desc: String, time: String, isCritical: Boolean) {
-    Row(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-        Icon(if (isCritical) Icons.Default.Error else Icons.Default.Info, contentDescription = null, tint = if (isCritical) CriticalRed else Color.Gray, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-            Text(desc, fontSize = 12.sp, color = Color.DarkGray)
-        }
-        Text(time, fontSize = 12.sp, color = Color.Gray)
     }
 }

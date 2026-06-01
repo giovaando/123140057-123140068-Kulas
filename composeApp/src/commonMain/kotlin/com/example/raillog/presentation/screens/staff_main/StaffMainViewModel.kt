@@ -2,35 +2,25 @@ package com.example.raillog.presentation.screens.staff_main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.raillog.domain.model.DraftItem
-import com.example.raillog.domain.model.SupplyItem
+import com.example.raillog.data.local.datastore.DataStoreFactory
+import com.example.raillog.presentation.screens.login.GlobalSessionManager
 import com.example.raillog.domain.repository.SupplyRepository
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 
 class StaffMainViewModel(
-    private val repository: SupplyRepository
+    private val supplyRepository: SupplyRepository,
+    dataStoreFactory: DataStoreFactory
 ) : ViewModel() {
 
-    private val _activeUserRole = MutableStateFlow("Giovan Lado (Staff Gudang)")
-    val activeUserRole = _activeUserRole.asStateFlow()
+    val userPreferences = GlobalSessionManager.getPrefs(dataStoreFactory)
 
-    // Mengambil semua barang (requests) dari repository
-    val allSupplyItems: StateFlow<List<SupplyItem>> = repository.getAllItems()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val activeUserRole = userPreferences.userRole
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Staff Gudang")
 
-    // TAMBAHAN BARU: Mengambil semua draft dari repository
-    val allDrafts: StateFlow<List<DraftItem>> = repository.getAllDrafts()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val allSupplyItems = supplyRepository.getAllItems()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allDrafts = supplyRepository.getAllDrafts()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 }

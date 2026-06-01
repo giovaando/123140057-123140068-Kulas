@@ -1,140 +1,143 @@
 package com.example.raillog.presentation.screens.welcome
 
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DirectionsTransit
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.DirectionsRailway
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.raillog.data.local.datastore.DataStoreFactory
+import com.example.raillog.presentation.screens.login.GlobalSessionManager
 import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
 import kotlin.math.roundToInt
+
+val WelcomeBg = Color(0xFF1E3A5F)
+val BrandNavy = Color(0xFF00236F)
+val SuccessGreen = Color(0xFF10B981)
+val TextGray = Color(0xFFB0C4DE)
 
 @Composable
 fun WelcomeScreen(
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onAutoLogin: (String) -> Unit = {},
+    dataStoreFactory: DataStoreFactory = koinInject()
 ) {
-    val darkBlueTop = Color(0xFF234B76)
-    val darkBlueBottom = Color(0xFF04142D)
+    // --- LOGIKA AUTO-LOGIN DIKEMBALIKAN ---
+    val userPreferences = remember { GlobalSessionManager.getPrefs(dataStoreFactory) }
+    val savedRole by userPreferences.userRole.collectAsState(initial = "")
 
-    Box(
+    LaunchedEffect(savedRole) {
+        if (savedRole.isNotEmpty()) {
+            onAutoLogin(savedRole)
+        }
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(darkBlueTop, darkBlueBottom)))
-            // Mengamankan dari status bar atas dan navigation bar bawah
+            .background(WelcomeBg)
+            .padding(32.dp)
             .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 32.dp, vertical = 24.dp)
+            .navigationBarsPadding(),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // --- LOGO (Kiri Atas) ---
+        // --- HEADER ---
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = 16.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(48.dp)
                     .background(Color.White, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.DirectionsTransit,
+                    imageVector = Icons.Default.DirectionsRailway,
                     contentDescription = "Logo",
-                    tint = darkBlueBottom,
-                    modifier = Modifier.size(20.dp)
+                    tint = BrandNavy,
+                    modifier = Modifier.size(28.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             Text(
                 text = "RailLog",
                 color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold
             )
         }
 
-        // --- KONTEN (Kiri Bawah) ---
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(bottom = 32.dp) // Jarak ekstra dari dasar layar
-        ) {
+        // --- BAGIAN TEKS TENGAH ---
+        Column {
             Text(
                 text = "Streamlining Rail\nLogistics with\nAI Precision",
                 color = Color.White,
-                fontSize = 36.sp,
+                fontSize = 40.sp,
                 fontWeight = FontWeight.ExtraBold,
-                lineHeight = 42.sp,
+                lineHeight = 46.sp,
                 letterSpacing = (-1).sp
             )
-
             Spacer(modifier = Modifier.height(24.dp))
-
             Text(
-                text = "Advanced tracking, predictive maintenance,\nand optimized routing for Nusantara's modern\nrail network.",
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Normal
-            )
-
-            Spacer(modifier = Modifier.height(56.dp))
-
-            // --- TOMBOL GESER (START) ---
-            SwipeToStartPill(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                onUnlock = onNavigateToLogin
+                text = "Advanced tracking, predictive maintenance,\nand optimized routing for Nusantara's\nmodern rail network.",
+                color = TextGray,
+                fontSize = 16.sp,
+                lineHeight = 24.sp
             )
         }
+
+        // --- TOMBOL SWIPE TO START ---
+        // Menggunakan parameter onNavigateToLogin yang diminta oleh AppNavHost
+        SwipeToStartButton(onSwipeComplete = onNavigateToLogin)
     }
 }
 
 @Composable
-fun SwipeToStartPill(
-    modifier: Modifier = Modifier,
-    onUnlock: () -> Unit
-) {
-    val darkBlueBottom = Color(0xFF04142D)
-    val thumbSize = 52.dp
-    val thumbPadding = 6.dp
-
-    var containerWidth by remember { mutableStateOf(0) }
-    val thumbSizePx = with(LocalDensity.current) { (thumbSize + (thumbPadding * 2)).toPx() }
-
-    val offsetX = remember { Animatable(0f) }
+fun SwipeToStartButton(onSwipeComplete: () -> Unit) {
+    val thumbSize = 64.dp
+    val thumbSizePx = with(LocalDensity.current) { thumbSize.toPx() }
     val coroutineScope = rememberCoroutineScope()
-    var isUnlocked by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = modifier
-            .height(64.dp)
-            .background(Color(0xFF193255).copy(alpha = 0.6f), RoundedCornerShape(32.dp))
-            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(32.dp))
-            .onSizeChanged { containerWidth = it.width },
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(80.dp)
+            .clip(RoundedCornerShape(40.dp))
+            .background(Color.Black.copy(alpha = 0.2f))
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(40.dp))
+            .padding(8.dp),
         contentAlignment = Alignment.CenterStart
     ) {
-        // Teks "Start" dan Chevron (>>>) di tengah
+        val maxWidthPx = constraints.maxWidth.toFloat()
+        val maxDragPx = maxWidthPx - thumbSizePx
+
+        val progress = if (maxDragPx > 0) (dragOffset / maxDragPx).coerceIn(0f, 1f) else 0f
+
+        val currentThumbColor = lerp(Color.White, SuccessGreen, progress)
+        val currentIconColor = lerp(BrandNavy, Color.White, progress)
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -145,57 +148,70 @@ fun SwipeToStartPill(
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
-                modifier = Modifier.padding(start = 12.dp)
+                modifier = Modifier.padding(end = 8.dp)
             )
-            Spacer(modifier = Modifier.width(24.dp))
-            Row {
-                Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp))
-                Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
-                Icon(Icons.Default.ChevronRight, null, tint = Color.White, modifier = Modifier.size(18.dp))
-            }
+            AnimatedArrows()
         }
 
-        // Handle Lingkaran Putih yang Digeser
         Box(
             modifier = Modifier
-                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                .padding(thumbPadding)
+                .offset { IntOffset(dragOffset.roundToInt(), 0) }
                 .size(thumbSize)
-                .background(Color.White, CircleShape)
+                .background(currentThumbColor, CircleShape)
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
-                            val threshold = containerWidth * 0.6f // Berhasil jika geser > 60%
-                            if (offsetX.value >= threshold) {
+                            if (dragOffset > maxDragPx * 0.8f) {
                                 coroutineScope.launch {
-                                    offsetX.animateTo(containerWidth - thumbSizePx)
-                                    if (!isUnlocked) {
-                                        isUnlocked = true
-                                        onUnlock()
-                                    }
+                                    dragOffset = maxDragPx
+                                    onSwipeComplete()
                                 }
                             } else {
-                                coroutineScope.launch { offsetX.animateTo(0f) }
+                                coroutineScope.launch {
+                                    val anim = Animatable(dragOffset)
+                                    anim.animateTo(0f, tween(300)) {
+                                        dragOffset = value
+                                    }
+                                }
                             }
                         }
                     ) { change, dragAmount ->
                         change.consume()
-                        if (!isUnlocked) {
-                            coroutineScope.launch {
-                                val newOffset = (offsetX.value + dragAmount)
-                                    .coerceIn(0f, containerWidth - thumbSizePx)
-                                offsetX.snapTo(newOffset)
-                            }
-                        }
+                        dragOffset = (dragOffset + dragAmount).coerceIn(0f, maxDragPx)
                     }
                 },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Swipe to start",
+                tint = currentIconColor,
+                modifier = Modifier.size(32.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun AnimatedArrows() {
+    Row(horizontalArrangement = Arrangement.spacedBy((-4).dp)) {
+        for (i in 0..2) {
+            val infiniteTransition = rememberInfiniteTransition(label = "arrow_$i")
+            val alpha by infiniteTransition.animateFloat(
+                initialValue = 0.2f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 500, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse,
+                    initialStartOffset = StartOffset(offsetMillis = i * 200)
+                ),
+                label = "alpha_anim_$i"
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = darkBlueBottom,
-                modifier = Modifier.size(28.dp)
+                tint = Color.White.copy(alpha = alpha),
+                modifier = Modifier.size(20.dp)
             )
         }
     }

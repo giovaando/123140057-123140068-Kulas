@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 sealed interface Route {
     @Serializable data object Welcome : Route
     @Serializable data object Login : Route
+    @Serializable data object Register : Route
     @Serializable data object StaffMain : Route
     @Serializable data class RequisitionWizard(val draftId: String? = null) : Route
     @Serializable data object Home : Route
