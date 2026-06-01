@@ -2,11 +2,16 @@ package com.example.raillog.presentation.screens.requisition
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.raillog.core.util.visionApiKey
+import com.example.raillog.data.remote.api.VisionApiService
 import com.example.raillog.domain.model.PartCategory
 import com.example.raillog.domain.model.Priority
 import com.example.raillog.domain.model.SupplyItem
 import com.example.raillog.domain.model.SupplyStatus
 import com.example.raillog.domain.repository.SupplyRepository
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,12 +19,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.datetime.Clock // IMPORT WAKTU KMP
 import kotlin.random.Random
 
+// ==========================================
+// STATE & UI MODELS
+// ==========================================
 @Serializable
 data class CatalogItemUI(
     val id: String, val name: String, val category: String,
@@ -28,11 +36,14 @@ data class CatalogItemUI(
 
 @Serializable
 data class RequisitionFormState(
+    val hasScannedInitialDoc: Boolean = false,
+    val isProcessingAI: Boolean = false,
+
     val requestorName: String = "",
     val employeeId: String = "",
     val department: String = "",
     val dateOfRequest: String = "",
-    val projectType: String = "LRT",
+    val projectType: String = "",
     val projectCode: String = "",
     val destinationSite: String = "",
     val selectedCategory: String = "All",
@@ -45,7 +56,6 @@ data class RequisitionFormState(
         CatalogItemUI("WRN-110-T", "Wrench Set Pro", "Tools", 15, true)
     ),
     val uploadedDocs: List<String> = emptyList(),
-    val isUploadingDoc: Boolean = false,
     val isSigned: Boolean = false,
     val isSubmitting: Boolean = false,
     val submitSuccess: Boolean = false,
@@ -67,8 +77,7 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
 
                 if (targetDraft != null) {
                     currentDraftId = draftId
-                    val savedState =
-                        Json.decodeFromString<RequisitionFormState>(targetDraft.formStateJson)
+                    val savedState = Json.decodeFromString<RequisitionFormState>(targetDraft.formStateJson)
                     _uiState.value = savedState
                     onStepLoaded(targetDraft.currentStep)
                 }
@@ -78,41 +87,112 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
         }
     }
 
-    fun updateName(name: String) {
-        _uiState.update { it.copy(requestorName = name) }
+    // ==========================================
+    // SKENARIO B: GOOGLE CLOUD VISION API LOGIC (DETEKTIF MODE)
+    // ==========================================
+    fun processInitialDocument(base64Image: String, fileName: String) {
+        _uiState.update { it.copy(isProcessingAI = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                println("====== [DETEKTIF] MEMULAI PROSES SCAN ======")
+                println("Ukuran Base64 Image: ${base64Image.length} karakter")
+
+                val httpClient = HttpClient {
+                    install(ContentNegotiation) {
+                        json(Json { ignoreUnknownKeys = true })
+                    }
+                }
+                val visionApi = VisionApiService(httpClient)
+
+                println("====== [DETEKTIF] MENGIRIM KE GOOGLE VISION API ======")
+                val rawText = visionApi.extractTextFromImage(
+                    base64Image = base64Image,
+                    apiKey = visionApiKey
+                )
+
+                httpClient.close()
+
+                // ALAT SADAP UTAMA: Menampilkan apa yang dibaca oleh Google
+                println("====== [DETEKTIF] HASIL MATA AI GOOGLE (RAW TEXT) ======")
+                println(rawText)
+                println("======================================================")
+
+                if (rawText.isBlank()) {
+                    throw Exception("Tidak ada teks terdeteksi. Pastikan gambar jelas dan internet aktif.")
+                }
+
+                // 3. REGEX PARSING
+                val qtyBantalan = Regex("Bantalan Beton Wika.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                val qtyRel = Regex("Rel Profile R54.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                val qtyPenambat = Regex("Penambat E-Clip.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                val qtyBearings = Regex("Heavy-Duty Steel Bearings.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                val qtyWrench = Regex("Wrench Set Pro.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+
+                val extractedProjectCode = Regex("Kode Proyek:\\s*([A-Z0-9-]+)").find(rawText)?.groupValues?.get(1) ?: ""
+                val extractedSite = Regex("Tujuan:\\s*([A-Za-z\\s]+)").find(rawText)?.groupValues?.get(1)?.trim() ?: ""
+                val extractedDate = Regex("Tanggal:\\s*([0-9/\\-]+)").find(rawText)?.groupValues?.get(1) ?: ""
+
+                println("====== [DETEKTIF] HASIL EKSTRAKSI REGEX ======")
+                println("Project Code: $extractedProjectCode")
+                println("Tujuan: $extractedSite")
+                println("Bantalan: $qtyBantalan, Penambat: $qtyPenambat")
+                println("==============================================")
+
+                // 4. INJEKSI KE DALAM FORM UI STATE
+                _uiState.update { state ->
+                    val updatedCatalog = state.catalogItems.map { item ->
+                        when (item.id) {
+                            "SLP-C-091" -> item.copy(reqQty = qtyBantalan)
+                            "RFL-R-054" -> item.copy(reqQty = qtyRel)
+                            "FST-E-102" -> item.copy(reqQty = qtyPenambat)
+                            "BRG-992-A" -> item.copy(reqQty = qtyBearings)
+                            "WRN-110-T" -> item.copy(reqQty = qtyWrench)
+                            else -> item
+                        }
+                    }
+
+                    state.copy(
+                        isProcessingAI = false,
+                        hasScannedInitialDoc = true,
+
+                        requestorName = "Giovan Lado",
+                        employeeId = "RLN-123140068",
+                        department = "Track Infrastructure",
+                        dateOfRequest = extractedDate,
+                        projectType = if (extractedProjectCode.contains("LRT")) "LRT" else "KRL",
+                        projectCode = extractedProjectCode,
+                        destinationSite = extractedSite,
+                        catalogItems = updatedCatalog,
+                        uploadedDocs = listOf(fileName)
+                    )
+                }
+            } catch (e: Exception) {
+                println("====== [DETEKTIF] ERROR API/KTOR ======")
+                e.printStackTrace()
+                println("=======================================")
+
+                _uiState.update {
+                    it.copy(
+                        isProcessingAI = false,
+                        errorMessage = "Error API: ${e.message}. Periksa koneksi internet atau API Key."
+                    )
+                }
+            }
+        }
     }
 
-    fun updateEmployeeId(id: String) {
-        _uiState.update { it.copy(employeeId = id) }
-    }
+    fun skipInitialScan() { _uiState.update { it.copy(hasScannedInitialDoc = true) } }
 
-    fun updateDepartment(dept: String) {
-        _uiState.update { it.copy(department = dept) }
-    }
-
-    fun updateDate(date: String) {
-        _uiState.update { it.copy(dateOfRequest = date) }
-    }
-
-    fun updateProjectType(type: String) {
-        _uiState.update { it.copy(projectType = type) }
-    }
-
-    fun updateProjectCode(code: String) {
-        _uiState.update { it.copy(projectCode = code) }
-    }
-
-    fun updateDestinationSite(site: String) {
-        _uiState.update { it.copy(destinationSite = site) }
-    }
-
-    fun updateCategoryFilter(category: String) {
-        _uiState.update { it.copy(selectedCategory = category) }
-    }
-
-    fun updateSearchQuery(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
-    }
+    fun updateName(name: String) { _uiState.update { it.copy(requestorName = name) } }
+    fun updateEmployeeId(id: String) { _uiState.update { it.copy(employeeId = id) } }
+    fun updateDepartment(dept: String) { _uiState.update { it.copy(department = dept) } }
+    fun updateDate(date: String) { _uiState.update { it.copy(dateOfRequest = date) } }
+    fun updateProjectType(type: String) { _uiState.update { it.copy(projectType = type) } }
+    fun updateProjectCode(code: String) { _uiState.update { it.copy(projectCode = code) } }
+    fun updateDestinationSite(site: String) { _uiState.update { it.copy(destinationSite = site) } }
+    fun updateCategoryFilter(category: String) { _uiState.update { it.copy(selectedCategory = category) } }
+    fun updateSearchQuery(query: String) { _uiState.update { it.copy(searchQuery = query) } }
 
     fun updateItemQuantity(itemId: String, isAdd: Boolean) {
         _uiState.update { state ->
@@ -165,7 +245,7 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
             return
         }
         if (!currentState.isSigned) {
-            _uiState.update { it.copy(errorMessage = "Tanda tangan wajib diisi di Final Review!") }
+            _uiState.update { it.copy(errorMessage = "Tanda tangan wajib dibubuhkan!") }
             return
         }
 
@@ -174,18 +254,9 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
         viewModelScope.launch {
             try {
                 delay(1000)
-
-                // 1. Ambil daftar barang yang kuantitasnya lebih dari 0
                 val requestedItems = currentState.catalogItems.filter { it.reqQty > 0 }
+                val totalQuantity = if (requestedItems.isNotEmpty()) requestedItems.sumOf { it.reqQty } else 1
 
-                // 2. Hitung total kuantitas dari semua barang yang dipilih
-                val totalQuantity = if (requestedItems.isNotEmpty()) {
-                    requestedItems.sumOf { it.reqQty }
-                } else {
-                    1 // Fallback minimal 1 jika entah bagaimana kosong
-                }
-
-                // 3. Buat nama pengajuan yang lebih dinamis berdasarkan barang yang dipilih
                 val dynamicName = if (requestedItems.isNotEmpty()) {
                     if (requestedItems.size > 1) {
                         "${requestedItems.first().name} & ${requestedItems.size - 1} lainnya"
@@ -199,28 +270,24 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
                 val newItem = SupplyItem(
                     id = 0L,
                     partCode = currentState.projectCode,
-                    name = dynamicName, // NAMA SEKARANG DINAMIS
+                    name = dynamicName,
                     category = PartCategory.INFRASTRUCTURE,
-                    quantity = totalQuantity, // KUANTITAS SEKARANG MENGAMBIL DARI INPUTAN
+                    quantity = totalQuantity,
                     unit = "Unit",
                     supplier = "Internal Depo",
                     status = SupplyStatus.PENDING,
                     priority = Priority.HIGH,
-                    documentRef = null,
+                    documentRef = currentState.uploadedDocs.firstOrNull(),
                     notes = "",
                     createdAt = Clock.System.now(),
                     updatedAt = Clock.System.now()
                 )
                 repository.insertItem(newItem)
                 repository.deleteDraft(currentDraftId)
+
                 _uiState.update { it.copy(isSubmitting = false, submitSuccess = true) }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isSubmitting = false,
-                        errorMessage = "Gagal: ${e.message}"
-                    )
-                }
+                _uiState.update { it.copy(isSubmitting = false, errorMessage = "Gagal mengirim data: ${e.message}") }
             }
         }
     }
