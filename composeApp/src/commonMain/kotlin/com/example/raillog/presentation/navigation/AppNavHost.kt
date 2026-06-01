@@ -86,7 +86,7 @@ fun AppNavHost(
             RequisitionScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onSubmissionSuccess = {
+                onNavigateToHome = {                          // ← Ganti onSubmissionSuccess
                     navController.navigate(Route.StaffMain) {
                         popUpTo(Route.StaffMain) { inclusive = true }
                     }
