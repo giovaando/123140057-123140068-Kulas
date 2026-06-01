@@ -2,4 +2,4 @@ package com.example.raillog.core.util
 
 import com.example.raillog.BuildConfig
 
-actual val visionApiKey: String = BuildConfig.VISION_API_KEY
+actual val visionApiKey: String = BuildConfig.GEMINI_API_KEY

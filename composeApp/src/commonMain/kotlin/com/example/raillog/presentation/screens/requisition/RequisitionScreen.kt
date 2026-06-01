@@ -20,26 +20,25 @@ fun RequisitionScreen(
     onNavigateBack: () -> Unit,
     onSubmissionSuccess: () -> Unit
 ) {
-    // Mengamati perubahan state dari ViewModel
     val uiState by viewModel.uiState.collectAsState()
 
-    // =========================================================================
-    // PERBAIKAN UTAMA: Menerima 2 parameter (fileName dan base64Data)
-    // =========================================================================
+    // ✅ PERBAIKAN: rememberMediaPicker harus di top-level composable
+    // bukan di dalam lambda Scaffold/Box
     val mediaPicker = rememberMediaPicker { fileName, base64Data ->
-        if (base64Data != null) {
-            // Jika sukses memilih file, kirim gambar ke Google Vision API
+        println("====== [SCREEN] onMediaPicked dipanggil ======")
+        println("====== [SCREEN] fileName   : $fileName ======")
+        println("====== [SCREEN] base64 len : ${base64Data?.length ?: 0} ======")
+
+        if (base64Data != null && base64Data.isNotBlank()) {
             viewModel.processInitialDocument(
                 base64Image = base64Data,
                 fileName = fileName
             )
         } else {
-            println("Gagal membaca file atau proses dibatalkan pengguna.")
+            println("====== [SCREEN] base64Data null atau kosong ======")
         }
     }
-    // =========================================================================
 
-    // Navigasi otomatis jika submit berhasil
     LaunchedEffect(uiState.submitSuccess) {
         if (uiState.submitSuccess) {
             onSubmissionSuccess()
@@ -63,12 +62,17 @@ fun RequisitionScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Navigasi Layar: Jika belum scan, tampilkan menu upload. Jika sudah, tampilkan form.
             if (!uiState.hasScannedInitialDoc) {
                 InitialScanSection(
                     isProcessingAI = uiState.isProcessingAI,
-                    onOpenCamera = { mediaPicker.launchCamera() },
-                    onOpenGallery = { mediaPicker.launchGallery() },
+                    onOpenCamera = {
+                        println("====== [SCREEN] launchCamera dipanggil ======")
+                        mediaPicker.launchCamera()
+                    },
+                    onOpenGallery = {
+                        println("====== [SCREEN] launchGallery dipanggil ======")
+                        mediaPicker.launchGallery()
+                    },
                     onSkip = { viewModel.skipInitialScan() }
                 )
             } else {
@@ -78,7 +82,6 @@ fun RequisitionScreen(
                 )
             }
 
-            // Menampilkan pesan error dari Ktor/API jika ada
             uiState.errorMessage?.let { errorMsg ->
                 Snackbar(
                     modifier = Modifier
@@ -91,7 +94,6 @@ fun RequisitionScreen(
                 }
             }
 
-            // Indikator Loading saat submit data
             if (uiState.isSubmitting) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
@@ -116,8 +118,15 @@ fun InitialScanSection(
         if (isProcessingAI) {
             CircularProgressIndicator(modifier = Modifier.size(64.dp))
             Spacer(modifier = Modifier.height(24.dp))
-            Text("AI sedang menganalisis dokumen...", style = MaterialTheme.typography.bodyLarge)
-            Text("Mohon tunggu sebentar.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            Text(
+                "AI sedang menganalisis dokumen...",
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                "Mohon tunggu sebentar.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
         } else {
             Icon(
                 imageVector = Icons.Default.DocumentScanner,
@@ -139,7 +148,9 @@ fun InitialScanSection(
 
             Button(
                 onClick = onOpenCamera,
-                modifier = Modifier.fillMaxWidth().height(50.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
             ) {
                 Icon(Icons.Default.CameraAlt, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -150,7 +161,9 @@ fun InitialScanSection(
 
             OutlinedButton(
                 onClick = onOpenGallery,
-                modifier = Modifier.fillMaxWidth().height(50.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
             ) {
                 Icon(Icons.Default.Image, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -214,7 +227,10 @@ fun RequisitionFormSection(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (item.reqQty > 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = if (item.reqQty > 0)
+                        MaterialTheme.colorScheme.primaryContainer
+                    else
+                        MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
                 Row(
@@ -225,11 +241,20 @@ fun RequisitionFormSection(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(item.name, style = MaterialTheme.typography.bodyLarge, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        Text("Stok Gudang: ${item.stock}", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            item.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        Text(
+                            "Stok Gudang: ${item.stock}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = { viewModel.updateItemQuantity(item.id, isAdd = false) }) {
+                        IconButton(onClick = {
+                            viewModel.updateItemQuantity(item.id, isAdd = false)
+                        }) {
                             Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Kurang")
                         }
                         Text(
@@ -237,7 +262,9 @@ fun RequisitionFormSection(
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
-                        IconButton(onClick = { viewModel.updateItemQuantity(item.id, isAdd = true) }) {
+                        IconButton(onClick = {
+                            viewModel.updateItemQuantity(item.id, isAdd = true)
+                        }) {
                             Icon(Icons.Default.AddCircleOutline, contentDescription = "Tambah")
                         }
                     }
@@ -255,7 +282,10 @@ fun RequisitionFormSection(
                     checked = uiState.isSigned,
                     onCheckedChange = { viewModel.setSignedStatus(it) }
                 )
-                Text("Saya mengonfirmasi data ini valid dan telah ditandatangani.", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Saya mengonfirmasi data ini valid dan telah ditandatangani.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -265,7 +295,9 @@ fun RequisitionFormSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(55.dp),
-                enabled = !uiState.isSubmitting && uiState.isSigned && uiState.projectCode.isNotBlank()
+                enabled = !uiState.isSubmitting
+                        && uiState.isSigned
+                        && uiState.projectCode.isNotBlank()
             ) {
                 Text("Submit Pengajuan Material")
             }

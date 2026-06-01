@@ -77,7 +77,9 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
 
                 if (targetDraft != null) {
                     currentDraftId = draftId
-                    val savedState = Json.decodeFromString<RequisitionFormState>(targetDraft.formStateJson)
+                    val savedState = Json.decodeFromString<RequisitionFormState>(
+                        targetDraft.formStateJson
+                    )
                     _uiState.value = savedState
                     onStepLoaded(targetDraft.currentStep)
                 }
@@ -88,58 +90,92 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
     }
 
     // ==========================================
-    // SKENARIO B: GOOGLE CLOUD VISION API LOGIC (DETEKTIF MODE)
+    // GOOGLE CLOUD VISION API LOGIC
     // ==========================================
     fun processInitialDocument(base64Image: String, fileName: String) {
+
+        println("====== [VIEWMODEL] base64 diterima : ${base64Image.length} karakter ======")
+        println("====== [VIEWMODEL] fileName         : $fileName ======")
+        println("====== [VIEWMODEL] base64 kosong?   : ${base64Image.isBlank()} ======")
+
+        // Validasi awal sebelum proses
+        if (base64Image.isBlank()) {
+            _uiState.update {
+                it.copy(
+                    isProcessingAI = false,
+                    errorMessage = "Gambar kosong. Coba ambil foto ulang atau pilih file lain."
+                )
+            }
+            return
+        }
+
         _uiState.update { it.copy(isProcessingAI = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
                 println("====== [DETEKTIF] MEMULAI PROSES SCAN ======")
-                println("Ukuran Base64 Image: ${base64Image.length} karakter")
+                println("Ukuran Base64 Image : ${base64Image.length} karakter")
+                println("Nama File           : $fileName")
 
                 val httpClient = HttpClient {
                     install(ContentNegotiation) {
                         json(Json { ignoreUnknownKeys = true })
                     }
                 }
+
+                // MENGGUNAKAN VISION API
                 val visionApi = VisionApiService(httpClient)
 
                 println("====== [DETEKTIF] MENGIRIM KE GOOGLE VISION API ======")
                 val rawText = visionApi.extractTextFromImage(
                     base64Image = base64Image,
-                    apiKey = visionApiKey
+                    apiKey = visionApiKey // Mengambil kunci Vision dari Config.kt
                 )
 
                 httpClient.close()
 
-                // ALAT SADAP UTAMA: Menampilkan apa yang dibaca oleh Google
                 println("====== [DETEKTIF] HASIL MATA AI GOOGLE (RAW TEXT) ======")
                 println(rawText)
                 println("======================================================")
 
                 if (rawText.isBlank()) {
-                    throw Exception("Tidak ada teks terdeteksi. Pastikan gambar jelas dan internet aktif.")
+                    throw Exception(
+                        "Tidak ada teks terdeteksi. " +
+                                "Pastikan gambar jelas, pencahayaan cukup, dan internet aktif."
+                    )
                 }
 
-                // 3. REGEX PARSING
-                val qtyBantalan = Regex("Bantalan Beton Wika.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
-                val qtyRel = Regex("Rel Profile R54.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
-                val qtyPenambat = Regex("Penambat E-Clip.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
-                val qtyBearings = Regex("Heavy-Duty Steel Bearings.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
-                val qtyWrench = Regex("Wrench Set Pro.*?(\\d+)").find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                // REGEX PARSING
+                val qtyBantalan = Regex("Bantalan Beton Wika.*?(\\d+)")
+                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                val qtyRel = Regex("Rel Profile R54.*?(\\d+)")
+                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                val qtyPenambat = Regex("Penambat E-Clip.*?(\\d+)")
+                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                val qtyBearings = Regex("Heavy-Duty Steel Bearings.*?(\\d+)")
+                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                val qtyWrench = Regex("Wrench Set Pro.*?(\\d+)")
+                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
 
-                val extractedProjectCode = Regex("Kode Proyek:\\s*([A-Z0-9-]+)").find(rawText)?.groupValues?.get(1) ?: ""
-                val extractedSite = Regex("Tujuan:\\s*([A-Za-z\\s]+)").find(rawText)?.groupValues?.get(1)?.trim() ?: ""
-                val extractedDate = Regex("Tanggal:\\s*([0-9/\\-]+)").find(rawText)?.groupValues?.get(1) ?: ""
+                val extractedProjectCode = Regex("Kode Proyek:\\s*([A-Z0-9-]+)")
+                    .find(rawText)?.groupValues?.get(1) ?: ""
+                val extractedSite = Regex("Tujuan:\\s*([A-Za-z\\s]+)")
+                    .find(rawText)?.groupValues?.get(1)?.trim() ?: ""
+                val extractedDate = Regex("Tanggal:\\s*([0-9/\\-]+)")
+                    .find(rawText)?.groupValues?.get(1) ?: ""
 
                 println("====== [DETEKTIF] HASIL EKSTRAKSI REGEX ======")
-                println("Project Code: $extractedProjectCode")
-                println("Tujuan: $extractedSite")
-                println("Bantalan: $qtyBantalan, Penambat: $qtyPenambat")
+                println("Project Code : $extractedProjectCode")
+                println("Tujuan       : $extractedSite")
+                println("Tanggal      : $extractedDate")
+                println("Bantalan     : $qtyBantalan")
+                println("Rel          : $qtyRel")
+                println("Penambat     : $qtyPenambat")
+                println("Bearings     : $qtyBearings")
+                println("Wrench       : $qtyWrench")
                 println("==============================================")
 
-                // 4. INJEKSI KE DALAM FORM UI STATE
+                // INJEKSI KE FORM UI STATE
                 _uiState.update { state ->
                     val updatedCatalog = state.catalogItems.map { item ->
                         when (item.id) {
@@ -155,7 +191,6 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
                     state.copy(
                         isProcessingAI = false,
                         hasScannedInitialDoc = true,
-
                         requestorName = "Giovan Lado",
                         employeeId = "RLN-123140068",
                         department = "Track Infrastructure",
@@ -167,32 +202,64 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
                         uploadedDocs = listOf(fileName)
                     )
                 }
+
             } catch (e: Exception) {
                 println("====== [DETEKTIF] ERROR API/KTOR ======")
+                println("Tipe Error : ${e::class.simpleName}")
+                println("Pesan      : ${e.message}")
+                println("Cause      : ${e.cause?.message}")
                 e.printStackTrace()
                 println("=======================================")
 
                 _uiState.update {
                     it.copy(
                         isProcessingAI = false,
-                        errorMessage = "Error API: ${e.message}. Periksa koneksi internet atau API Key."
+                        errorMessage = "[${e::class.simpleName}] ${e.message}"
                     )
                 }
             }
         }
     }
 
-    fun skipInitialScan() { _uiState.update { it.copy(hasScannedInitialDoc = true) } }
+    fun skipInitialScan() {
+        _uiState.update { it.copy(hasScannedInitialDoc = true) }
+    }
 
-    fun updateName(name: String) { _uiState.update { it.copy(requestorName = name) } }
-    fun updateEmployeeId(id: String) { _uiState.update { it.copy(employeeId = id) } }
-    fun updateDepartment(dept: String) { _uiState.update { it.copy(department = dept) } }
-    fun updateDate(date: String) { _uiState.update { it.copy(dateOfRequest = date) } }
-    fun updateProjectType(type: String) { _uiState.update { it.copy(projectType = type) } }
-    fun updateProjectCode(code: String) { _uiState.update { it.copy(projectCode = code) } }
-    fun updateDestinationSite(site: String) { _uiState.update { it.copy(destinationSite = site) } }
-    fun updateCategoryFilter(category: String) { _uiState.update { it.copy(selectedCategory = category) } }
-    fun updateSearchQuery(query: String) { _uiState.update { it.copy(searchQuery = query) } }
+    fun updateName(name: String) {
+        _uiState.update { it.copy(requestorName = name) }
+    }
+
+    fun updateEmployeeId(id: String) {
+        _uiState.update { it.copy(employeeId = id) }
+    }
+
+    fun updateDepartment(dept: String) {
+        _uiState.update { it.copy(department = dept) }
+    }
+
+    fun updateDate(date: String) {
+        _uiState.update { it.copy(dateOfRequest = date) }
+    }
+
+    fun updateProjectType(type: String) {
+        _uiState.update { it.copy(projectType = type) }
+    }
+
+    fun updateProjectCode(code: String) {
+        _uiState.update { it.copy(projectCode = code) }
+    }
+
+    fun updateDestinationSite(site: String) {
+        _uiState.update { it.copy(destinationSite = site) }
+    }
+
+    fun updateCategoryFilter(category: String) {
+        _uiState.update { it.copy(selectedCategory = category) }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
 
     fun updateItemQuantity(itemId: String, isAdd: Boolean) {
         _uiState.update { state ->
@@ -240,6 +307,7 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
 
     fun submitRequisition() {
         val currentState = _uiState.value
+
         if (currentState.projectCode.isBlank() || currentState.requestorName.isBlank()) {
             _uiState.update { it.copy(errorMessage = "Mohon lengkapi Nama dan Project Code!") }
             return
@@ -255,7 +323,9 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
             try {
                 delay(1000)
                 val requestedItems = currentState.catalogItems.filter { it.reqQty > 0 }
-                val totalQuantity = if (requestedItems.isNotEmpty()) requestedItems.sumOf { it.reqQty } else 1
+                val totalQuantity = if (requestedItems.isNotEmpty()) {
+                    requestedItems.sumOf { it.reqQty }
+                } else 1
 
                 val dynamicName = if (requestedItems.isNotEmpty()) {
                     if (requestedItems.size > 1) {
@@ -282,12 +352,19 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
                     createdAt = Clock.System.now(),
                     updatedAt = Clock.System.now()
                 )
+
                 repository.insertItem(newItem)
                 repository.deleteDraft(currentDraftId)
 
                 _uiState.update { it.copy(isSubmitting = false, submitSuccess = true) }
+
             } catch (e: Exception) {
-                _uiState.update { it.copy(isSubmitting = false, errorMessage = "Gagal mengirim data: ${e.message}") }
+                _uiState.update {
+                    it.copy(
+                        isSubmitting = false,
+                        errorMessage = "Gagal mengirim data: ${e.message}"
+                    )
+                }
             }
         }
     }
