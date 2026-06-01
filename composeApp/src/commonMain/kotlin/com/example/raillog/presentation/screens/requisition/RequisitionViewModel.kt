@@ -2,8 +2,7 @@ package com.example.raillog.presentation.screens.requisition
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.raillog.core.util.visionApiKey
-import com.example.raillog.data.remote.api.VisionApiService
+import com.example.raillog.core.network.ApiConfig
 import com.example.raillog.domain.model.PartCategory
 import com.example.raillog.domain.model.Priority
 import com.example.raillog.domain.model.SupplyItem
@@ -11,6 +10,11 @@ import com.example.raillog.domain.model.SupplyStatus
 import com.example.raillog.domain.repository.SupplyRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,7 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.*
 import kotlin.random.Random
 
 // ==========================================
@@ -90,15 +94,13 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
     }
 
     // ==========================================
-    // GOOGLE CLOUD VISION API LOGIC
+    // AI OCR LOGIC (POWERED BY GEMINI 2.0 FLASH)
     // ==========================================
     fun processInitialDocument(base64Image: String, fileName: String) {
 
         println("====== [VIEWMODEL] base64 diterima : ${base64Image.length} karakter ======")
         println("====== [VIEWMODEL] fileName         : $fileName ======")
-        println("====== [VIEWMODEL] base64 kosong?   : ${base64Image.isBlank()} ======")
 
-        // Validasi awal sebelum proses
         if (base64Image.isBlank()) {
             _uiState.update {
                 it.copy(
@@ -113,9 +115,7 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
 
         viewModelScope.launch {
             try {
-                println("====== [DETEKTIF] MEMULAI PROSES SCAN ======")
-                println("Ukuran Base64 Image : ${base64Image.length} karakter")
-                println("Nama File           : $fileName")
+                println("====== [GEMINI] MEMULAI PROSES SCAN ======")
 
                 val httpClient = HttpClient {
                     install(ContentNegotiation) {
@@ -123,57 +123,91 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
                     }
                 }
 
-                // MENGGUNAKAN VISION API
-                val visionApi = VisionApiService(httpClient)
+                // Prompt khusus agar Gemini membaca seperti OCR
+                val prompt = """
+                    Kamu adalah sistem OCR ahli. Ekstrak semua teks dari gambar dokumen Surat Jalan / SPK ini.
+                    Kembalikan HANYA teks mentah persis seperti aslinya, pertahankan angka dan nama barang, tanpa penjelasan tambahan.
+                """.trimIndent()
 
-                println("====== [DETEKTIF] MENGIRIM KE GOOGLE VISION API ======")
-                val rawText = visionApi.extractTextFromImage(
-                    base64Image = base64Image,
-                    apiKey = visionApiKey // Mengambil kunci Vision dari Config.kt
-                )
-
-                httpClient.close()
-
-                println("====== [DETEKTIF] HASIL MATA AI GOOGLE (RAW TEXT) ======")
-                println(rawText)
-                println("======================================================")
-
-                if (rawText.isBlank()) {
-                    throw Exception(
-                        "Tidak ada teks terdeteksi. " +
-                                "Pastikan gambar jelas, pencahayaan cukup, dan internet aktif."
-                    )
+                // Merakit JSON Body menggunakan format standar KMP
+                val requestBody = buildJsonObject {
+                    putJsonArray("contents") {
+                        addJsonObject {
+                            putJsonArray("parts") {
+                                addJsonObject { put("text", prompt) }
+                                addJsonObject {
+                                    putJsonObject("inline_data") {
+                                        put("mime_type", "image/jpeg") // Sesuaikan jika PDF di-convert ke JPEG/PNG
+                                        put("data", base64Image)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
-                // REGEX PARSING
+                println("====== [GEMINI] MENGIRIM KE GOOGLE GEMINI API ======")
+                val response = httpClient.post(
+                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${ApiConfig.geminiApiKey}"
+                ) {
+                    contentType(ContentType.Application.Json)
+                    setBody(requestBody)
+                }
+
+                val rawResponse = response.bodyAsText()
+                httpClient.close()
+
+                if (response.status.value !in 200..299) {
+                    throw Exception("Gemini API Error ${response.status.value}: $rawResponse")
+                }
+
+                // Parsing hasil balasan dari Gemini
+                val jsonParser = Json { ignoreUnknownKeys = true }
+                val jsonResponse = jsonParser.parseToJsonElement(rawResponse).jsonObject
+
+                val extractedText = jsonResponse["candidates"]
+                    ?.jsonArray?.getOrNull(0)
+                    ?.jsonObject?.get("content")
+                    ?.jsonObject?.get("parts")
+                    ?.jsonArray?.getOrNull(0)
+                    ?.jsonObject?.get("text")
+                    ?.jsonPrimitive?.content ?: ""
+
+                println("====== [GEMINI] HASIL BACAAN TEKS ======")
+                println(extractedText)
+                println("========================================")
+
+                if (extractedText.isBlank()) {
+                    throw Exception("Gemini tidak mendeteksi teks dari dokumen ini.")
+                }
+
+                // REGEX PARSING MENGGUNAKAN HASIL GEMINI
                 val qtyBantalan = Regex("Bantalan Beton Wika.*?(\\d+)")
-                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                    .find(extractedText)?.groupValues?.get(1)?.toInt() ?: 0
                 val qtyRel = Regex("Rel Profile R54.*?(\\d+)")
-                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                    .find(extractedText)?.groupValues?.get(1)?.toInt() ?: 0
                 val qtyPenambat = Regex("Penambat E-Clip.*?(\\d+)")
-                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                    .find(extractedText)?.groupValues?.get(1)?.toInt() ?: 0
                 val qtyBearings = Regex("Heavy-Duty Steel Bearings.*?(\\d+)")
-                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                    .find(extractedText)?.groupValues?.get(1)?.toInt() ?: 0
                 val qtyWrench = Regex("Wrench Set Pro.*?(\\d+)")
-                    .find(rawText)?.groupValues?.get(1)?.toInt() ?: 0
+                    .find(extractedText)?.groupValues?.get(1)?.toInt() ?: 0
 
-                val extractedProjectCode = Regex("Kode Proyek:\\s*([A-Z0-9-]+)")
-                    .find(rawText)?.groupValues?.get(1) ?: ""
-                val extractedSite = Regex("Tujuan:\\s*([A-Za-z\\s]+)")
-                    .find(rawText)?.groupValues?.get(1)?.trim() ?: ""
-                val extractedDate = Regex("Tanggal:\\s*([0-9/\\-]+)")
-                    .find(rawText)?.groupValues?.get(1) ?: ""
+                val extractedProjectCode = Regex("Kode Proyek:?\\s*([A-Z0-9-]+)")
+                    .find(extractedText)?.groupValues?.get(1) ?: ""
+                val extractedSite = Regex("Tujuan:?\\s*([A-Za-z\\s]+)")
+                    .find(extractedText)?.groupValues?.get(1)?.trim() ?: ""
+                val extractedDate = Regex("Tanggal:?\\s*([0-9/\\-]+)")
+                    .find(extractedText)?.groupValues?.get(1) ?: ""
 
-                println("====== [DETEKTIF] HASIL EKSTRAKSI REGEX ======")
+                println("====== [GEMINI] HASIL EKSTRAKSI REGEX ======")
                 println("Project Code : $extractedProjectCode")
                 println("Tujuan       : $extractedSite")
                 println("Tanggal      : $extractedDate")
                 println("Bantalan     : $qtyBantalan")
                 println("Rel          : $qtyRel")
                 println("Penambat     : $qtyPenambat")
-                println("Bearings     : $qtyBearings")
-                println("Wrench       : $qtyWrench")
-                println("==============================================")
+                println("============================================")
 
                 // INJEKSI KE FORM UI STATE
                 _uiState.update { state ->
@@ -204,17 +238,15 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
                 }
 
             } catch (e: Exception) {
-                println("====== [DETEKTIF] ERROR API/KTOR ======")
-                println("Tipe Error : ${e::class.simpleName}")
+                println("====== [GEMINI] ERROR ======")
                 println("Pesan      : ${e.message}")
-                println("Cause      : ${e.cause?.message}")
                 e.printStackTrace()
-                println("=======================================")
+                println("============================")
 
                 _uiState.update {
                     it.copy(
                         isProcessingAI = false,
-                        errorMessage = "[${e::class.simpleName}] ${e.message}"
+                        errorMessage = "Gagal memproses AI: ${e.message}"
                     )
                 }
             }
