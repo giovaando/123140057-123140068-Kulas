@@ -8,4 +8,4 @@ interface MediaPicker {
 }
 
 @Composable
-expect fun rememberMediaPicker(onMediaPicked: (String) -> Unit): MediaPicker
+expect fun rememberMediaPicker(onMediaPicked: (fileName: String, base64Data: String?) -> Unit): MediaPicker
