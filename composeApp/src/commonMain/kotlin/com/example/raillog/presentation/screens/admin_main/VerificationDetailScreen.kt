@@ -34,7 +34,7 @@ fun VerificationDetailScreen(
     }
 
     val item by viewModel.selectedItem.collectAsState()
-    val document by viewModel.selectedDocument.collectAsState()
+    val document by viewModel.document.collectAsState()
 
     if (item == null) {
         Box(
@@ -161,6 +161,32 @@ fun VerificationDetailScreen(
                             label = "Requested Quantity",
                             value = "${currentItem.quantity} ${currentItem.unit}",
                             valid = currentItem.quantity > 0
+                        )
+                    }
+                }
+            }
+
+            item {
+
+                Text(
+                    text = "OCR Extracted Text",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            item {
+
+                Card {
+
+                    Column(
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+
+                        Text(
+                            text = document?.content
+                                ?: "Dokumen OCR tidak tersedia",
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
