@@ -30,8 +30,8 @@ class AdminMainViewModel(
 
     // 3. Logika Pintar: Combine + Debounce
     val filteredPendingItems: StateFlow<List<SupplyItem>> = combine(
-        pendingRequisitions,
-        _searchQuery.debounce(300L), // Menggunakan Long (300L) untuk durasi debounce
+        allItems,
+        _searchQuery.debounce(300L),
         _selectedFilter
     ) { items, query, filter ->
         items.filter { item ->
