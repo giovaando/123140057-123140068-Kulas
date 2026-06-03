@@ -280,7 +280,7 @@ fun VerificationTab(viewModel: AdminMainViewModel, onItemClick: (Long) -> Unit) 
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val filteredItems by viewModel.filteredPendingItems.collectAsState()
-    val filterOptions = listOf("All", "High Confidence", "Low Confidence")
+    val filterOptions = listOf("All", "Pending", "Verified", "Rejected")
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
