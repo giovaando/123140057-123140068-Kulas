@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.raillog.domain.model.SupplyItem
 import com.example.raillog.domain.model.SupplyStatus
 import com.example.raillog.domain.model.TechnicalDocument
+import com.example.raillog.domain.model.VerificationStatus
 import com.example.raillog.domain.repository.SupplyRepository
 import com.example.raillog.domain.repository.TechnicalDocumentRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,11 +22,10 @@ class VerificationDetailViewModel(
     private val _selectedItem = MutableStateFlow<SupplyItem?>(null)
     val selectedItem: StateFlow<SupplyItem?> = _selectedItem.asStateFlow()
 
-    private val _selectedDocument =
+    private val _document =
         MutableStateFlow<TechnicalDocument?>(null)
-
-    val selectedDocument: StateFlow<TechnicalDocument?> =
-        _selectedDocument.asStateFlow()
+    val document =
+        _document.asStateFlow()
 
     fun loadItem(id: Long) {
 
@@ -42,16 +42,12 @@ class VerificationDetailViewModel(
 
                     if (!documentTitle.isNullOrBlank()) {
 
-                        val document =
-                            technicalDocumentRepository
-                                .getAllDocuments()
-                                .firstOrNull()
-                                ?.firstOrNull {
-                                    it.title == documentTitle
-                                }
+                        technicalDocumentRepository
+                            .getDocumentByTitle(documentTitle)
+                            .collect { document ->
 
-                        _selectedDocument.value =
-                            document
+                                _document.value = document
+                            }
                     }
                 }
         }
@@ -74,6 +70,16 @@ class VerificationDetailViewModel(
                     updatedItem
                 )
 
+                _document.value?.let { document ->
+
+                    technicalDocumentRepository
+                        .updateVerification(
+                            id = document.id,
+                            status = VerificationStatus.APPROVED,
+                            aiSummary = document.aiSummary
+                        )
+                }
+
                 onSuccess()
             }
         }
@@ -95,6 +101,16 @@ class VerificationDetailViewModel(
                 supplyRepository.updateItem(
                     updatedItem
                 )
+
+                _document.value?.let { document ->
+
+                    technicalDocumentRepository
+                        .updateVerification(
+                            id = document.id,
+                            status = VerificationStatus.FLAGGED,
+                            aiSummary = document.aiSummary
+                        )
+                }
 
                 onSuccess()
             }
