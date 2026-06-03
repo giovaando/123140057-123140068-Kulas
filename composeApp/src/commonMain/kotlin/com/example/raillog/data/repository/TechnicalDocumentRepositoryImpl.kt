@@ -18,7 +18,7 @@ class TechnicalDocumentRepositoryImpl(
     db: RailLogDatabase
 ) : TechnicalDocumentRepository {
 
-    private val queries = db.technicalDocumentEntityQueries
+    private val queries = db.technicalDocumentQueries
 
     override fun getAllDocuments(): Flow<List<TechnicalDocument>> {
         return queries.getAllDocuments()
@@ -55,6 +55,35 @@ class TechnicalDocumentRepositoryImpl(
                         verificationStatus = VerificationStatus.fromString(entity.verification_status),
                         aiSummary = entity.ai_summary,
                         createdAt = Instant.fromEpochMilliseconds(entity.created_at)
+                    )
+                }
+            }
+    }
+
+    override fun getDocumentByTitle(
+        title: String
+    ): Flow<TechnicalDocument?> {
+
+        return queries.getDocumentByTitle(title)
+            .asFlow()
+            .mapToList(Dispatchers.IO)
+            .map { list ->
+
+                list.firstOrNull()?.let { entity ->
+
+                    TechnicalDocument(
+                        id = entity.id,
+                        title = entity.title,
+                        documentType = DocumentType.fromString(entity.document_type),
+                        content = entity.content,
+                        linkedItemId = entity.linked_item_id,
+                        verificationStatus = VerificationStatus.fromString(
+                            entity.verification_status
+                        ),
+                        aiSummary = entity.ai_summary,
+                        createdAt = Instant.fromEpochMilliseconds(
+                            entity.created_at
+                        )
                     )
                 }
             }

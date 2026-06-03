@@ -10,18 +10,45 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.raillog.presentation.theme.RailLogColors
+import org.koin.compose.viewmodel.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VerificationDetailScreen(
     requisitionId: Long,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: VerificationDetailViewModel = koinViewModel()
 ) {
+
+    
+    LaunchedEffect(requisitionId) {
+        viewModel.loadItem(requisitionId)
+    }
+
+    val item by viewModel.selectedItem.collectAsState()
+    val document by viewModel.selectedDocument.collectAsState()
+
+    if (item == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val currentItem = item!!
+    val confidence = 75 + (currentItem.id % 25).toInt()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -32,7 +59,9 @@ fun VerificationDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(
+                        onClick = onNavigateBack
+                    ) {
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = "Back"
@@ -52,18 +81,22 @@ fun VerificationDetailScreen(
         ) {
 
             item {
+
                 Card {
+
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
 
                         Text(
-                            "Requisition #$requisitionId",
+                            text = "Requisition #${currentItem.id}",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(
+                            modifier = Modifier.height(12.dp)
+                        )
 
                         Box(
                             modifier = Modifier
@@ -76,8 +109,9 @@ fun VerificationDetailScreen(
                                     vertical = 6.dp
                                 )
                         ) {
+
                             Text(
-                                "AI Confidence 94%",
+                                text = "AI Confidence $confidence%",
                                 color = RailLogColors.Success,
                                 fontWeight = FontWeight.Bold
                             )
@@ -87,73 +121,81 @@ fun VerificationDetailScreen(
             }
 
             item {
+
                 Text(
-                    "AI Extracted Information",
+                    text = "AI Extracted Information",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
 
             item {
+
                 Card {
+
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
 
                         VerificationField(
                             label = "Project Code",
-                            value = "LRT-JABO-24A",
+                            value = currentItem.partCode,
                             valid = true
                         )
 
                         VerificationField(
-                            label = "Destination",
-                            value = "Depok Workshop",
+                            label = "Document",
+                            value = document?.title
+                                ?: currentItem.documentRef
+                                ?: "-",
                             valid = true
                         )
 
                         VerificationField(
-                            label = "Material Count",
-                            value = "12 Items",
+                            label = "Material",
+                            value = currentItem.name,
                             valid = true
                         )
 
                         VerificationField(
                             label = "Requested Quantity",
-                            value = "84 Units",
-                            valid = false
+                            value = "${currentItem.quantity} ${currentItem.unit}",
+                            valid = currentItem.quantity > 0
                         )
                     }
                 }
             }
 
             item {
+
                 Text(
-                    "AI Findings",
+                    text = "AI Findings",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
 
             item {
+
                 Card {
+
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
 
                         FindingRow(
-                            text = "Material quantity mismatch",
-                            success = false
-                        )
-
-                        FindingRow(
                             text = "Project code validated",
-                            success = true
+                            success = currentItem.partCode.isNotBlank()
                         )
 
                         FindingRow(
-                            text = "Destination validated",
-                            success = true
+                            text = "Document attached",
+                            success = !currentItem.documentRef.isNullOrBlank()
+                        )
+
+                        FindingRow(
+                            text = "Quantity verified",
+                            success = currentItem.quantity > 0
                         )
                     }
                 }
@@ -167,14 +209,22 @@ fun VerificationDetailScreen(
 
                     OutlinedButton(
                         modifier = Modifier.weight(1f),
-                        onClick = { }
+                        onClick = {
+                            viewModel.rejectItem {
+                                onNavigateBack()
+                            }
+                        }
                     ) {
                         Text("Request Revision")
                     }
 
                     Button(
                         modifier = Modifier.weight(1f),
-                        onClick = { }
+                        onClick = {
+                            viewModel.verifyItem {
+                                onNavigateBack()
+                            }
+                        }
                     ) {
                         Text("Approve")
                     }
@@ -182,10 +232,14 @@ fun VerificationDetailScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(
+                    modifier = Modifier.height(24.dp)
+                )
             }
         }
     }
+    
+
 }
 
 @Composable
@@ -195,6 +249,7 @@ private fun VerificationField(
     valid: Boolean
 ) {
 
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -202,31 +257,37 @@ private fun VerificationField(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
 
-        Column {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
 
             Text(
-                label,
+                text = label,
                 style = MaterialTheme.typography.labelMedium
             )
 
             Text(
-                value,
+                text = value,
                 fontWeight = FontWeight.SemiBold
             )
         }
 
         Icon(
-            imageVector = if (valid)
-                Icons.Default.CheckCircle
-            else
-                Icons.Default.Warning,
+            imageVector =
+                if (valid)
+                    Icons.Default.CheckCircle
+                else
+                    Icons.Default.Warning,
             contentDescription = null,
-            tint = if (valid)
-                RailLogColors.Success
-            else
-                RailLogColors.Error
+            tint =
+                if (valid)
+                    RailLogColors.Success
+                else
+                    RailLogColors.Error
         )
     }
+    
+
 }
 
 @Composable
@@ -235,25 +296,32 @@ private fun FindingRow(
     success: Boolean
 ) {
 
+    
     Row(
         modifier = Modifier.padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
 
         Icon(
-            imageVector = if (success)
-                Icons.Default.CheckCircle
-            else
-                Icons.Default.Warning,
+            imageVector =
+                if (success)
+                    Icons.Default.CheckCircle
+                else
+                    Icons.Default.Warning,
             contentDescription = null,
-            tint = if (success)
-                RailLogColors.Success
-            else
-                RailLogColors.Error
+            tint =
+                if (success)
+                    RailLogColors.Success
+                else
+                    RailLogColors.Error
         )
 
-        Spacer(Modifier.width(8.dp))
+        Spacer(
+            modifier = Modifier.width(8.dp)
+        )
 
-        Text(text)
+        Text(text = text)
     }
+    
+
 }

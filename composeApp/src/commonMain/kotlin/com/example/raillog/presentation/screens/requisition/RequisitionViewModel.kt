@@ -3,11 +3,15 @@ package com.example.raillog.presentation.screens.requisition
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.raillog.core.network.ApiConfig
+import com.example.raillog.domain.model.DocumentType
 import com.example.raillog.domain.model.PartCategory
 import com.example.raillog.domain.model.Priority
 import com.example.raillog.domain.model.SupplyItem
 import com.example.raillog.domain.model.SupplyStatus
+import com.example.raillog.domain.model.TechnicalDocument
+import com.example.raillog.domain.model.VerificationStatus
 import com.example.raillog.domain.repository.SupplyRepository
+import com.example.raillog.domain.repository.TechnicalDocumentRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.post
@@ -66,7 +70,10 @@ data class RequisitionFormState(
     val errorMessage: String? = null
 )
 
-class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel() {
+class RequisitionViewModel(
+    private val repository: SupplyRepository,
+    private val technicalDocumentRepository: TechnicalDocumentRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(RequisitionFormState())
     val uiState: StateFlow<RequisitionFormState> = _uiState.asStateFlow()
@@ -180,6 +187,15 @@ class RequisitionViewModel(private val repository: SupplyRepository) : ViewModel
                 if (extractedText.isBlank()) {
                     throw Exception("Gemini tidak mendeteksi teks dari dokumen ini.")
                 }
+                technicalDocumentRepository.insertDocument(
+                    TechnicalDocument(
+                        title = fileName,
+                        documentType = DocumentType.DELIVERY_NOTE,
+                        content = extractedText,
+                        verificationStatus = VerificationStatus.AI_REVIEWED,
+                        aiSummary = extractedText.take(500)
+                    )
+                )
 
                 // REGEX PARSING MENGGUNAKAN HASIL GEMINI
                 val qtyBantalan = Regex("Bantalan Beton Wika.*?(\\d+)")

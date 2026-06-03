@@ -12,6 +12,10 @@ interface TechnicalDocumentRepository {
         id: Long
     ): Flow<TechnicalDocument?>
 
+    fun getDocumentByTitle(
+        title: String
+    ): Flow<TechnicalDocument?>
+
     fun getDocumentsByItem(
         itemId: Long
     ): Flow<List<TechnicalDocument>>
