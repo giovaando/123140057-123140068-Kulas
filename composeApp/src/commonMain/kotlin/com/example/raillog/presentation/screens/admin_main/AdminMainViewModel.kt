@@ -44,8 +44,9 @@ class AdminMainViewModel(
 
             // Filter Kategori/Status
             val matchesFilter = when (filter) {
-                1 -> isHighConfidence
-                2 -> !isHighConfidence
+                1 -> item.status.name == "PENDING"
+                2 -> item.status.name == "VERIFIED"
+                3 -> item.status.name == "REJECTED"
                 else -> true
             }
 
