@@ -155,7 +155,7 @@ class RequisitionViewModel(
 
                 println("====== [GEMINI] MENGIRIM KE GOOGLE GEMINI API ======")
                 val response = httpClient.post(
-                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${ApiConfig.geminiApiKey}"
+                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${ApiConfig.geminiApiKey}"
                 ) {
                     contentType(ContentType.Application.Json)
                     setBody(requestBody)

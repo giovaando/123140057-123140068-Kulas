@@ -21,10 +21,8 @@ getDocumentById:
 SELECT * FROM TechnicalDocumentEntity WHERE id = ?;
 
 getDocumentByTitle:
-SELECT *
-FROM TechnicalDocumentEntity
-WHERE title = ?
-LIMIT 1;
+SELECT * FROM TechnicalDocumentEntity
+WHERE title = ?;
 
 getUnverifiedDocuments:
 SELECT * FROM TechnicalDocumentEntity
