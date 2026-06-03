@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.raillog.core.util.RequestNotificationPermission
 import com.example.raillog.data.local.datastore.DataStoreFactory
 import com.example.raillog.presentation.screens.login.GlobalSessionManager
 import kotlinx.coroutines.launch
@@ -41,7 +42,9 @@ fun WelcomeScreen(
     onAutoLogin: (String) -> Unit = {},
     dataStoreFactory: DataStoreFactory = koinInject()
 ) {
-    // --- LOGIKA AUTO-LOGIN DIKEMBALIKAN ---
+    // Request notifikasi permission — expect/actual, aman dipanggil dari commonMain
+    RequestNotificationPermission()
+
     val userPreferences = remember { GlobalSessionManager.getPrefs(dataStoreFactory) }
     val savedRole by userPreferences.userRole.collectAsState(initial = "")
 
@@ -60,7 +63,6 @@ fun WelcomeScreen(
             .navigationBarsPadding(),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // --- HEADER ---
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(top = 16.dp)
@@ -87,7 +89,6 @@ fun WelcomeScreen(
             )
         }
 
-        // --- BAGIAN TEKS TENGAH ---
         Column {
             Text(
                 text = "Streamlining Rail\nLogistics with\nAI Precision",
@@ -106,8 +107,6 @@ fun WelcomeScreen(
             )
         }
 
-        // --- TOMBOL SWIPE TO START ---
-        // Menggunakan parameter onNavigateToLogin yang diminta oleh AppNavHost
         SwipeToStartButton(onSwipeComplete = onNavigateToLogin)
     }
 }

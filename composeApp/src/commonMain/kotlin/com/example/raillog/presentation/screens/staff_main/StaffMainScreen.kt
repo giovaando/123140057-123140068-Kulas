@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.raillog.domain.model.DraftItem
@@ -46,7 +47,7 @@ fun formatTimestamp(millis: Long): String {
     if (millis <= 0L) return "Just now"
     val totalSeconds = millis / 1000
     var days = totalSeconds / 86400
-    val timeOfDay = (totalSeconds + 7 * 3600) % 86400 // WIB UTC+7
+    val timeOfDay = (totalSeconds + 7 * 3600) % 86400
     val hours = timeOfDay / 3600
     val minutes = (timeOfDay % 3600) / 60
     var y = 1970
@@ -89,7 +90,12 @@ fun StaffMainScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(modifier = Modifier.size(32.dp).background(RailLightBlue, CircleShape), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(RailLightBlue, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text("GL", fontSize = 12.sp, color = RailBlue, fontWeight = FontWeight.Bold)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -99,16 +105,19 @@ fun StaffMainScreen(
                 actions = {
                     Box {
                         IconButton(onClick = { showAccountMenu = true }) {
-                            Icon(Icons.Default.AccountCircle, contentDescription = "Account", tint = Color.Gray, modifier = Modifier.size(30.dp))
+                            Icon(
+                                Icons.Default.AccountCircle,
+                                contentDescription = "Account",
+                                tint = Color.Gray,
+                                modifier = Modifier.size(30.dp)
+                            )
                         }
-
                         DropdownMenu(
                             expanded = showAccountMenu,
                             onDismissRequest = { showAccountMenu = false },
                             modifier = Modifier.background(Color.White)
                         ) {
                             val savedName by viewModel.userPreferences.staffName.collectAsState(initial = "")
-
                             DropdownMenuItem(
                                 text = {
                                     Column {
@@ -126,7 +135,9 @@ fun StaffMainScreen(
                             DropdownMenuItem(
                                 text = { Text("Logout", color = CriticalRed, fontWeight = FontWeight.Medium) },
                                 onClick = { showAccountMenu = false; onLogout() },
-                                leadingIcon = { Icon(Icons.Default.Logout, contentDescription = "Logout", tint = CriticalRed) }
+                                leadingIcon = {
+                                    Icon(Icons.Default.Logout, contentDescription = "Logout", tint = CriticalRed)
+                                }
                             )
                         }
                     }
@@ -136,7 +147,11 @@ fun StaffMainScreen(
         },
         floatingActionButton = {
             if (selectedTab == 1) {
-                FloatingActionButton(onClick = onNavigateToNewRequisition, containerColor = RailBlue, contentColor = Color.White) {
+                FloatingActionButton(
+                    onClick = onNavigateToNewRequisition,
+                    containerColor = RailBlue,
+                    contentColor = Color.White
+                ) {
                     Icon(Icons.Default.Add, contentDescription = "New Request")
                 }
             }
@@ -149,45 +164,113 @@ fun StaffMainScreen(
                         label = { Text(item.title, fontSize = 10.sp) },
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = RailBlue, selectedTextColor = RailBlue, indicatorColor = RailLightBlue)
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = RailBlue,
+                            selectedTextColor = RailBlue,
+                            indicatorColor = RailLightBlue
+                        )
                     )
                 }
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues).background(Color(0xFFFAFAFA))) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color(0xFFFAFAFA))
+        ) {
             when (selectedTab) {
-                0 -> StaffHomeTab(userRole, allItems, onStartNew = onNavigateToNewRequisition, onViewAllActivity = { selectedTab = 3 })
-                1 -> StaffRequestsTab(allItems, allDrafts, onNavigateToResumeDraft)
-                2 -> StaffInventoryTab(allItems)
-                3 -> StaffHistoryTab(allItems)
+                0 -> StaffHomeTab(
+                    userRole = userRole,
+                    allItems = allItems,
+                    onStartNew = onNavigateToNewRequisition,
+                    onViewAllActivity = { selectedTab = 3 }
+                )
+                1 -> StaffRequestsTab(
+                    viewModel = viewModel,
+                    allDrafts = allDrafts,
+                    onNavigateToResumeDraft = onNavigateToResumeDraft
+                )
+                2 -> StaffInventoryTab(viewModel = viewModel)
+                3 -> StaffHistoryTab(viewModel = viewModel)
             }
         }
     }
 }
 
+// ==================== HOME TAB ====================
 @Composable
-fun StaffHomeTab(userRole: String, allItems: List<SupplyItem>, onStartNew: () -> Unit, onViewAllActivity: () -> Unit) {
+fun StaffHomeTab(
+    userRole: String,
+    allItems: List<SupplyItem>,
+    onStartNew: () -> Unit,
+    onViewAllActivity: () -> Unit
+) {
     val pendingCount = allItems.count { it.status.name == "PENDING" }
     val criticalCount = allItems.count { it.priority.name == "CRITICAL" || it.priority.name == "HIGH" }
 
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         item {
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Good Morning,\n$userRole", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = RailBlue, lineHeight = 30.sp)
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                Box(modifier = Modifier.size(8.dp).background(if(pendingCount > 0) CriticalRed else SafeGreen, CircleShape))
+            Text(
+                "Good Morning,\n$userRole",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = RailBlue,
+                lineHeight = 30.sp
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .background(if (pendingCount > 0) CriticalRed else SafeGreen, CircleShape)
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(if(pendingCount > 0) "$pendingCount Pending Requisitions" else "All systems normal", color = MutedText, fontSize = 14.sp)
+                Text(
+                    if (pendingCount > 0) "$pendingCount Pending Requisitions" else "All systems normal",
+                    color = MutedText,
+                    fontSize = 14.sp
+                )
             }
         }
 
         item {
-            Card(onClick = onStartNew, modifier = Modifier.fillMaxWidth().height(88.dp), colors = CardDefaults.cardColors(containerColor = RailBlue), shape = RoundedCornerShape(12.dp)) {
-                Row(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Card(
+                onClick = onStartNew,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(88.dp),
+                colors = CardDefaults.cardColors(containerColor = RailBlue),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Column {
-                        Text("Start New Requisition", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("Initiate a 5-step material request", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                        Text(
+                            "Start New Requisition",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Text(
+                            "Initiate a 5-step material request",
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 12.sp
+                        )
                     }
                     Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(28.dp))
                 }
@@ -195,22 +278,64 @@ fun StaffHomeTab(userRole: String, allItems: List<SupplyItem>, onStartNew: () ->
         }
 
         item {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricCard(Modifier.weight(1f), Icons.Default.Assignment, "Total Items", allItems.size.toString(), MutedText)
-                MetricCard(Modifier.weight(1f), Icons.Default.WarningAmber, "High Priority", criticalCount.toString(), CriticalRed, CriticalRedBg)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                MetricCard(
+                    Modifier.weight(1f),
+                    Icons.Default.Assignment,
+                    "Total Items",
+                    allItems.size.toString(),
+                    MutedText
+                )
+                MetricCard(
+                    Modifier.weight(1f),
+                    Icons.Default.WarningAmber,
+                    "High Priority",
+                    criticalCount.toString(),
+                    CriticalRed,
+                    CriticalRedBg
+                )
             }
         }
 
         item {
             Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Recent Activity", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = RailBlue)
-                Text("View All", fontSize = 12.sp, color = RailBlue, fontWeight = FontWeight.Medium, modifier = Modifier.clickable { onViewAllActivity() }.padding(vertical = 4.dp, horizontal = 8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Recent Activity",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = RailBlue
+                )
+                Text(
+                    "View All",
+                    fontSize = 12.sp,
+                    color = RailBlue,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clickable { onViewAllActivity() }
+                        .padding(vertical = 4.dp, horizontal = 8.dp)
+                )
             }
         }
 
         if (allItems.isEmpty()) {
-            item { Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { Text("No recent activity yet.", color = Color.Gray, fontSize = 14.sp) } }
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No recent activity yet.", color = Color.Gray, fontSize = 14.sp)
+                }
+            }
         } else {
             items(allItems.reversed().take(3)) { item -> HistoryCard(item) }
         }
@@ -218,57 +343,100 @@ fun StaffHomeTab(userRole: String, allItems: List<SupplyItem>, onStartNew: () ->
     }
 }
 
+// ==================== REQUESTS TAB ====================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StaffRequestsTab(allItems: List<SupplyItem>, allDrafts: List<DraftItem>, onResumeDraft: (String) -> Unit) {
+fun StaffRequestsTab(
+    viewModel: StaffMainViewModel,
+    allDrafts: List<DraftItem>,
+    onNavigateToResumeDraft: (String) -> Unit
+) {
     var selectedSubTab by remember { mutableIntStateOf(0) }
     val subTabs = listOf("All", "Drafts", "In Progress", "Completed")
 
-    val filteredItems = when (selectedSubTab) {
-        0 -> allItems
-        2 -> allItems.filter { it.status.name == "PENDING" }
-        3 -> allItems.filter { it.status.name == "VERIFIED" || it.status.name == "REJECTED" }
-        else -> allItems
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val filteredItems by viewModel.filteredRequestItems.collectAsState()
+
+    val displayItems = when (selectedSubTab) {
+        2 -> filteredItems.filter { it.status.name == "PENDING" }
+        3 -> filteredItems.filter { it.status.name == "VERIFIED" || it.status.name == "REJECTED" }
+        else -> filteredItems
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Text("Requests", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = RailBlue, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-        SearchBarUI()
+        Text(
+            "Requests",
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = RailBlue,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        // ✅ Search bar fungsional
+        FunctionalSearchBar(
+            value = searchQuery,
+            onValueChange = { viewModel.updateSearchQuery(it) },
+            placeholder = "Search by name or ID..."
+        )
+
         ScrollableTabRow(
-            selectedTabIndex = selectedSubTab, containerColor = Color.Transparent, edgePadding = 16.dp,
-            indicator = { tabPositions -> SecondaryIndicator(Modifier.tabIndicatorOffset(tabPositions[selectedSubTab]), color = RailBlue) },
+            selectedTabIndex = selectedSubTab,
+            containerColor = Color.Transparent,
+            edgePadding = 16.dp,
+            indicator = { tabPositions ->
+                SecondaryIndicator(
+                    Modifier.tabIndicatorOffset(tabPositions[selectedSubTab]),
+                    color = RailBlue
+                )
+            },
             divider = { HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f)) }
         ) {
             subTabs.forEachIndexed { index, title ->
                 Tab(
-                    selected = selectedSubTab == index, onClick = { selectedSubTab = index },
-                    text = { Text(title, fontWeight = if(selectedSubTab == index) FontWeight.Bold else FontWeight.Normal, color = if(selectedSubTab == index) RailBlue else Color.Gray) }
+                    selected = selectedSubTab == index,
+                    onClick = { selectedSubTab = index },
+                    text = {
+                        Text(
+                            title,
+                            fontWeight = if (selectedSubTab == index) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selectedSubTab == index) RailBlue else Color.Gray
+                        )
+                    }
                 )
             }
         }
 
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             when (selectedSubTab) {
                 0 -> {
-                    if (allDrafts.isEmpty() && filteredItems.isEmpty()) {
-                        item { Text("No requests or drafts found.", color = Color.Gray, modifier = Modifier.padding(top = 16.dp)) }
+                    if (allDrafts.isEmpty() && displayItems.isEmpty()) {
+                        item {
+                            EmptyStateBox("No requests or drafts found.")
+                        }
                     } else {
-                        items(allDrafts) { draft -> DraftCard(draft) { onResumeDraft(draft.draftId) } }
-                        items(filteredItems) { item -> RequestProgressCard(item) }
+                        items(allDrafts) { draft ->
+                            DraftCard(draft) { onNavigateToResumeDraft(draft.draftId) }
+                        }
+                        items(displayItems) { item -> RequestProgressCard(item) }
                     }
                 }
                 1 -> {
                     if (allDrafts.isEmpty()) {
-                        item { Text("No Drafts Saved. Start a new requisition to auto-save.", color = Color.Gray, modifier = Modifier.padding(top = 16.dp)) }
+                        item { EmptyStateBox("No Drafts Saved. Start a new requisition to auto-save.") }
                     } else {
-                        items(allDrafts) { draft -> DraftCard(draft) { onResumeDraft(draft.draftId) } }
+                        items(allDrafts) { draft ->
+                            DraftCard(draft) { onNavigateToResumeDraft(draft.draftId) }
+                        }
                     }
                 }
                 else -> {
-                    if (filteredItems.isEmpty()) {
-                        item { Text("No requests found.", color = Color.Gray, modifier = Modifier.padding(top = 16.dp)) }
+                    if (displayItems.isEmpty()) {
+                        item { EmptyStateBox("No requests found.") }
                     } else {
-                        items(filteredItems) { item -> RequestProgressCard(item) }
+                        items(displayItems) { item -> RequestProgressCard(item) }
                     }
                 }
             }
@@ -277,27 +445,70 @@ fun StaffRequestsTab(allItems: List<SupplyItem>, allDrafts: List<DraftItem>, onR
     }
 }
 
+// ==================== INVENTORY TAB ====================
 @Composable
-fun StaffInventoryTab(allItems: List<SupplyItem>) {
-    var selectedCategory by remember { mutableStateOf("All") }
+fun StaffInventoryTab(viewModel: StaffMainViewModel) {
     val categories = listOf("All", "Infrastructure", "Spare Parts", "Tools")
-    val approvedItems = allItems.filter { it.status.name == "VERIFIED" }
-    val filteredItems = if (selectedCategory == "All") approvedItems
-    else approvedItems.filter { it.category.name.replace("_", " ").equals(selectedCategory, ignoreCase = true) }
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val selectedCategory by viewModel.inventoryCategory.collectAsState()
+    val filteredItems by viewModel.filteredInventoryItems.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        SearchBarUI()
-        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // ✅ Search bar fungsional
+        FunctionalSearchBar(
+            value = searchQuery,
+            onValueChange = { viewModel.updateSearchQuery(it) },
+            placeholder = "Search by name or part code..."
+        )
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             items(categories) { category ->
                 val isSelected = selectedCategory == category
-                Box(modifier = Modifier.clickable { selectedCategory = category }.background(if (isSelected) RailBlue else Color.White, RoundedCornerShape(8.dp)).border(1.dp, if (isSelected) RailBlue else Color.LightGray, RoundedCornerShape(8.dp)).padding(horizontal = 16.dp, vertical = 8.dp)) {
-                    Text(category, color = if (isSelected) Color.White else RailBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Box(
+                    modifier = Modifier
+                        .clickable { viewModel.updateInventoryCategory(category) }
+                        .background(
+                            if (isSelected) RailBlue else Color.White,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .border(1.dp, if (isSelected) RailBlue else Color.LightGray, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        category,
+                        color = if (isSelected) Color.White else RailBlue,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        LazyColumn(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             if (filteredItems.isEmpty()) {
-                item { Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) { Text("No items found in inventory.\nPending requests need approval first.", textAlign = androidx.compose.ui.text.style.TextAlign.Center, color = Color.Gray, fontSize = 14.sp) } }
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "No items found.\nPending requests need admin approval first.",
+                            textAlign = TextAlign.Center,
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
             } else {
                 items(filteredItems) { item -> InventoryItemCard(item) }
             }
@@ -306,67 +517,200 @@ fun StaffInventoryTab(allItems: List<SupplyItem>) {
     }
 }
 
+// ==================== HISTORY TAB ====================
 @Composable
-fun StaffHistoryTab(allItems: List<SupplyItem>) {
-    var selectedFilter by remember { mutableStateOf("All Requests") }
+fun StaffHistoryTab(viewModel: StaffMainViewModel) {
     val filters = listOf("All Requests", "Pending", "Verified", "Rejected")
-    val filteredItems = when (selectedFilter) {
-        "Pending" -> allItems.filter { it.status.name == "PENDING" }
-        "Verified" -> allItems.filter { it.status.name == "VERIFIED" }
-        "Rejected" -> allItems.filter { it.status.name == "REJECTED" }
-        else -> allItems
-    }
+    val historySearch by viewModel.historySearchQuery.collectAsState()
+    val selectedFilter by viewModel.historyFilter.collectAsState()
+    val filteredItems by viewModel.filteredHistoryItems.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Text("Request History", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = RailBlue, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-        SearchBarUI(placeholder = "Search ID or Project...")
-        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "Request History",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = RailBlue,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+
+        // ✅ Search bar fungsional (pisah dari inventory)
+        FunctionalSearchBar(
+            value = historySearch,
+            onValueChange = { viewModel.updateHistorySearchQuery(it) },
+            placeholder = "Search ID or Project..."
+        )
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(bottom = 8.dp)
+        ) {
             items(filters) { filter ->
                 val isSelected = selectedFilter == filter
-                Box(modifier = Modifier.clickable { selectedFilter = filter }.border(1.dp, if(isSelected) RailBlue else Color.LightGray, RoundedCornerShape(4.dp)).background(if(isSelected) RailBlue else Color.White, RoundedCornerShape(4.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
-                    Text(filter, color = if(isSelected) Color.White else Color.DarkGray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Box(
+                    modifier = Modifier
+                        .clickable { viewModel.updateHistoryFilter(filter) }
+                        .border(1.dp, if (isSelected) RailBlue else Color.LightGray, RoundedCornerShape(4.dp))
+                        .background(if (isSelected) RailBlue else Color.White, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        filter,
+                        color = if (isSelected) Color.White else Color.DarkGray,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (filteredItems.isEmpty()) { item { Text("No requests found.", color = Color.Gray, modifier = Modifier.padding(top = 16.dp)) } }
-            items(filteredItems) { item -> HistoryCard(item) }
+
+        LazyColumn(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (filteredItems.isEmpty()) {
+                item { EmptyStateBox("No requests found.") }
+            } else {
+                items(filteredItems) { item -> HistoryCard(item) }
+            }
             item { Spacer(modifier = Modifier.height(72.dp)) }
+        }
+    }
+}
+
+// ==================== REUSABLE COMPONENTS ====================
+
+@Composable
+fun FunctionalSearchBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String = "Search..."
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        placeholder = { Text(placeholder, color = Color.Gray) },
+        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
+        trailingIcon = {
+            if (value.isNotEmpty()) {
+                IconButton(onClick = { onValueChange("") }) {
+                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray)
+                }
+            }
+        },
+        shape = RoundedCornerShape(8.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            unfocusedContainerColor = Color.White,
+            focusedContainerColor = Color.White,
+            focusedBorderColor = RailBlue,
+            unfocusedBorderColor = Color.LightGray
+        ),
+        singleLine = true
+    )
+}
+
+@Composable
+fun EmptyStateBox(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Default.Inbox,
+                contentDescription = null,
+                tint = Color.LightGray,
+                modifier = Modifier.size(48.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(message, color = Color.Gray, fontSize = 14.sp, textAlign = TextAlign.Center)
         }
     }
 }
 
 @Composable
 fun HistoryCard(item: SupplyItem) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFE5E7EB))) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(text = item.partCode.ifEmpty { "REQ-2023-089" }, color = RailBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(Color(0xFFF3F4F6), RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
-                    Icon(Icons.Default.CalendarToday, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.partCode.ifEmpty { "REQ-2023-089" },
+                    color = RailBlue,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(Color(0xFFF3F4F6), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.CalendarToday,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(12.dp)
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(formatTimestamp(item.createdAt.toEpochMilliseconds()), fontSize = 12.sp, color = Color.DarkGray)
+                    Text(
+                        formatTimestamp(item.createdAt.toEpochMilliseconds()),
+                        fontSize = 12.sp,
+                        color = Color.DarkGray
+                    )
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(text = item.name, fontSize = 14.sp, color = Color.DarkGray)
             Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Inventory2, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(16.dp))
+                    Icon(
+                        Icons.Default.Inventory2,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("${item.quantity} Items", fontSize = 14.sp, color = Color.Gray)
                 }
                 val (bgStatusColor, textStatusColor, dotColor) = when (item.status.name) {
                     "VERIFIED" -> Triple(Color(0xFFECFDF5), SafeGreen, SafeGreen)
-                    "PENDING" -> Triple(Color(0xFFFFFBEB), Color(0xFFD97706), Color(0xFFF59E0B))
+                    "PENDING"  -> Triple(Color(0xFFFFFBEB), Color(0xFFD97706), Color(0xFFF59E0B))
                     "REJECTED" -> Triple(Color(0xFFFEF2F2), CriticalRed, CriticalRed)
-                    else -> Triple(Color(0xFFF3F4F6), Color.Gray, Color.DarkGray)
+                    else       -> Triple(Color(0xFFF3F4F6), Color.Gray, Color.DarkGray)
                 }
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(bgStatusColor, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(bgStatusColor, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
                     Box(modifier = Modifier.size(6.dp).background(dotColor, CircleShape))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = item.status.name, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = textStatusColor)
+                    Text(
+                        text = item.status.name,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textStatusColor
+                    )
                 }
             }
         }
@@ -375,30 +719,70 @@ fun HistoryCard(item: SupplyItem) {
 
 @Composable
 fun DraftCard(draft: DraftItem, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() }, colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color(0xFFD1D5DB))) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFD1D5DB))
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(draft.projectTitle.ifEmpty { "Untitled Draft" }, color = RailBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Box(modifier = Modifier.background(Color(0xFFE5E7EB), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) { Text("Draft", fontSize = 10.sp, color = Color.DarkGray) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    draft.projectTitle.ifEmpty { "Untitled Draft" },
+                    color = RailBlue,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFFE5E7EB), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text("Draft", fontSize = 10.sp, color = Color.DarkGray)
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text("Saved at Step ${draft.currentStep} of 5", fontSize = 12.sp, color = MutedText)
             Spacer(modifier = Modifier.height(12.dp))
-            LinearProgressIndicator(progress = { draft.currentStep / 5f }, modifier = Modifier.fillMaxWidth().height(4.dp), color = Color.Gray, trackColor = Color.LightGray.copy(alpha = 0.5f))
+            LinearProgressIndicator(
+                progress = { draft.currentStep / 5f },
+                modifier = Modifier.fillMaxWidth().height(4.dp),
+                color = Color.Gray,
+                trackColor = Color.LightGray.copy(alpha = 0.5f)
+            )
         }
     }
 }
 
 @Composable
 fun InventoryItemCard(item: SupplyItem) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     Text("ID: ${item.partCode}", color = MutedText, fontSize = 12.sp)
+                    Text(item.category.name, color = MutedText, fontSize = 11.sp)
                 }
-                Box(modifier = Modifier.background(SafeGreenBg, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) { Text("Qty: ${item.quantity}", fontSize = 12.sp, color = SafeGreen, fontWeight = FontWeight.Bold) }
+                Box(
+                    modifier = Modifier
+                        .background(SafeGreenBg, RoundedCornerShape(4.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("Qty: ${item.quantity}", fontSize = 12.sp, color = SafeGreen, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -406,11 +790,29 @@ fun InventoryItemCard(item: SupplyItem) {
 
 @Composable
 fun RequestProgressCard(item: SupplyItem) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color.LightGray)) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color.LightGray)
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(item.partCode.ifEmpty { "REQ-N/A" }, color = RailBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                Box(modifier = Modifier.background(Color.LightGray.copy(0.2f), RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) { Text(item.status.name, fontSize = 10.sp, color = Color.DarkGray) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    item.partCode.ifEmpty { "REQ-N/A" },
+                    color = RailBlue,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+                Box(
+                    modifier = Modifier
+                        .background(Color.LightGray.copy(0.2f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(item.status.name, fontSize = 10.sp, color = Color.DarkGray)
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(item.name, fontSize = 16.sp, fontWeight = FontWeight.Medium)
@@ -419,11 +821,32 @@ fun RequestProgressCard(item: SupplyItem) {
 }
 
 @Composable
-fun MetricCard(modifier: Modifier = Modifier, icon: ImageVector, title: String, count: String, iconTint: Color, iconBg: Color = Color.LightGray.copy(alpha = 0.2f)) {
-    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))) {
+fun MetricCard(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    title: String,
+    count: String,
+    iconTint: Color,
+    iconBg: Color = Color.LightGray.copy(alpha = 0.2f)
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
+    ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Box(modifier = Modifier.size(32.dp).background(iconBg, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp)) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(iconBg, RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
+                }
                 Text(count, fontWeight = FontWeight.Bold, fontSize = 24.sp, color = RailBlue)
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -434,9 +857,5 @@ fun MetricCard(modifier: Modifier = Modifier, icon: ImageVector, title: String, 
 
 @Composable
 fun SearchBarUI(placeholder: String = "Search by name or ID...") {
-    OutlinedTextField(
-        value = "", onValueChange = {}, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        placeholder = { Text(placeholder, color = Color.Gray) }, leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
-        shape = RoundedCornerShape(8.dp), colors = OutlinedTextFieldDefaults.colors(unfocusedContainerColor = Color.White)
-    )
+    FunctionalSearchBar(value = "", onValueChange = {}, placeholder = placeholder)
 }
