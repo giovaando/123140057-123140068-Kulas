@@ -2,25 +2,39 @@ package com.example.raillog.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
+/**
+ * RailLog Nusantara - Extreme Contrast Palette
+ * Dioptimalkan untuk visibilitas absolut di lingkungan lapangan.
+ */
 object RailLogColors {
-
-    val Primary = Color(0xFF1E3A8A)
-    val PrimaryDark = Color(0xFF193255)
-
-    val Background = Color(0xFFF7F9FB)
-    val Surface = Color(0xFFFFFFFF)
-
-    val Border = Color(0xFFE2E8F0)
-
-    val TextPrimary = Color(0xFF0F172A)
-    val TextSecondary = Color(0xFF64748B)
-
-    val Success = Color(0xFF10B981)
-    val SuccessBackground = Color(0xFFD1FAE5)
-
-    val Error = Color(0xFFEF4444)
+    // Primary - Deep & Solid
+    val PrimaryNavy = Color(0xFF000033)      // Navy super pekat
+    val PrimaryNavyLight = Color(0xFF001A4D)
+    
+    // Status - Bold & 100% Solid
+    val SuccessEmerald = Color(0xFF064E3B)   // Hijau hutan pekat
+    val SuccessBackground = Color(0xFFDCFCE7)
+    
+    val ErrorRed = Color(0xFF800000)         // Merah marun pekat
     val ErrorBackground = Color(0xFFFEE2E2)
+    
+    val WarningAmber = Color(0xFF78350F)     // Oranye tanah pekat
+    val WarningBackground = Color(0xFFFEF3C7)
 
-    val AISurface = Color(0xFFEEF2FF)
-    val AIBorder = Color(0xFFC7D2FE)
+    // UI Surfaces
+    val SurfaceSlate = Color(0xFFF8FAFC)     
+    val SurfaceWhite = Color(0xFFFFFFFF)
+    
+    // Form Borders - Solid Black
+    val BorderBlack = Color(0xFF000000)      // Hitam Total
+    val BorderGray = Color(0xFF1E293B)       // Abu-abu sangat tua
+
+    // Text - Maximum Visibility (Strict No-Alpha)
+    val TextPrimary = Color(0xFF000000)      // Hitam Total untuk teks utama & input
+    val TextSecondary = Color(0xFF000000)    // Label form juga hitam total
+    val TextMuted = Color(0xFF0F172A)        // Biru sangat tua (bukan abu-abu tipis)
+
+    // AI Components
+    val AISurface = Color(0xFFF0F7FF)
+    val AIBorder = Color(0xFF1E40AF)
 }

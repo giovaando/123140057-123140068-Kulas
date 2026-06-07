@@ -25,8 +25,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.raillog.core.util.RequestNotificationPermission
-import com.example.raillog.data.local.datastore.DataStoreFactory
-import com.example.raillog.presentation.screens.login.GlobalSessionManager
+import com.example.raillog.data.local.datastore.UserPreferences
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
@@ -40,12 +39,11 @@ val TextGray = Color(0xFFB0C4DE)
 fun WelcomeScreen(
     onNavigateToLogin: () -> Unit,
     onAutoLogin: (String) -> Unit = {},
-    dataStoreFactory: DataStoreFactory = koinInject()
+    userPreferences: UserPreferences = koinInject()
 ) {
     // Request notifikasi permission — expect/actual, aman dipanggil dari commonMain
     RequestNotificationPermission()
 
-    val userPreferences = remember { GlobalSessionManager.getPrefs(dataStoreFactory) }
     val savedRole by userPreferences.userRole.collectAsState(initial = "")
 
     LaunchedEffect(savedRole) {

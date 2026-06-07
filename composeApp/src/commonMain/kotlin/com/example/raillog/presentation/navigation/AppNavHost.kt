@@ -1,23 +1,17 @@
 package com.example.raillog.presentation.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import com.example.raillog.data.local.datastore.DataStoreFactory
-import com.example.raillog.presentation.screens.login.GlobalSessionManager
+import com.example.raillog.data.local.datastore.UserPreferences
 import com.example.raillog.presentation.screens.welcome.WelcomeScreen
 import com.example.raillog.presentation.screens.login.LoginScreen
-import com.example.raillog.presentation.screens.login.RegisterScreen // IMPORT BARU
+import com.example.raillog.presentation.screens.login.RegisterScreen
 import com.example.raillog.presentation.screens.staff_main.StaffMainScreen
 import com.example.raillog.presentation.screens.requisition.RequisitionScreen
 import com.example.raillog.presentation.screens.requisition.RequisitionViewModel
@@ -37,8 +31,7 @@ fun AppNavHost(
     navController: NavHostController = rememberNavController()
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val dataStoreFactory: DataStoreFactory = koinInject()
-    val userPreferences = remember { GlobalSessionManager.getPrefs(dataStoreFactory) }
+    val userPreferences: UserPreferences = koinInject()
 
     NavHost(
         navController = navController,
@@ -75,12 +68,9 @@ fun AppNavHost(
             )
         }
 
-        // [TAMBAHAN] Rute Registrasi
         composable<Route.Register> {
             RegisterScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -94,7 +84,11 @@ fun AppNavHost(
                 },
                 onLogout = {
                     coroutineScope.launch {
-                        try { userPreferences.clearUserSession() } catch (e: Exception) { e.printStackTrace() }
+                        try {
+                            userPreferences.clearUserSession()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
                     navController.navigate(Route.Login) {
                         popUpTo<Route.StaffMain> { inclusive = true }
@@ -126,7 +120,11 @@ fun AppNavHost(
                 },
                 onLogout = {
                     coroutineScope.launch {
-                        try { userPreferences.clearUserSession() } catch (e: Exception) { e.printStackTrace() }
+                        try {
+                            userPreferences.clearUserSession()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
                     navController.navigate(Route.Login) {
                         popUpTo<Route.AdminMain> { inclusive = true }
@@ -145,7 +143,9 @@ fun AppNavHost(
         }
 
         composable<Route.Home> { HomeScreen({}, {}, {}) }
-        composable<Route.AddSupply> { AddSupplyScreen(onNavigateBack = { navController.popBackStack() }) }
+        composable<Route.AddSupply> {
+            AddSupplyScreen(onNavigateBack = { navController.popBackStack() })
+        }
         composable<Route.SupplyDetail> { SupplyDetailScreen(0L, {}, {}) }
         composable<Route.AIAssistant> { AIAssistantScreen(null, null, {}) }
     }

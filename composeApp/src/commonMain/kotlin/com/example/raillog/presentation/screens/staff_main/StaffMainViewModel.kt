@@ -2,21 +2,18 @@ package com.example.raillog.presentation.screens.staff_main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.raillog.data.local.datastore.DataStoreFactory
+import com.example.raillog.data.local.datastore.UserPreferences
 import com.example.raillog.domain.model.SupplyItem
 import com.example.raillog.domain.model.SupplyStatus
 import com.example.raillog.domain.repository.SupplyRepository
-import com.example.raillog.presentation.screens.login.GlobalSessionManager
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 
 @OptIn(FlowPreview::class)
 class StaffMainViewModel(
     private val supplyRepository: SupplyRepository,
-    dataStoreFactory: DataStoreFactory
+    val userPreferences: UserPreferences
 ) : ViewModel() {
-
-    val userPreferences = GlobalSessionManager.getPrefs(dataStoreFactory)
 
     val activeUserRole = userPreferences.userRole
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Staff Gudang")

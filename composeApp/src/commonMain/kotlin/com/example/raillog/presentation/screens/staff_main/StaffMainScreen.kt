@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
@@ -26,46 +28,42 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.raillog.domain.model.DraftItem
 import com.example.raillog.domain.model.SupplyItem
+import com.example.raillog.presentation.theme.RailLogColors
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
 
-val RailBlue = Color(0xFF193255)
-val RailLightBlue = Color(0xFFF0F4FA)
-val SafeGreen = Color(0xFF10B981)
-val SafeGreenBg = Color(0xFFD1FAE5)
-val CriticalRed = Color(0xFFEF4444)
-val CriticalRedBg = Color(0xFFFEE2E2)
-val MutedText = Color(0xFF6B7280)
-
 sealed class BottomNavItem(val title: String, val icon: ImageVector) {
-    data object Home : BottomNavItem("Home", Icons.Default.Home)
-    data object Requests : BottomNavItem("Requests", Icons.Default.Assignment)
-    data object Inventory : BottomNavItem("Inventory", Icons.Default.Inventory)
-    data object History : BottomNavItem("History", Icons.Default.History)
+    data object Home : BottomNavItem("Beranda", Icons.Default.Home)
+    data object Requests : BottomNavItem("Pengajuan", Icons.AutoMirrored.Filled.Assignment)
+    data object Inventory : BottomNavItem("Gudang", Icons.Default.Inventory)
+    data object History : BottomNavItem("Audit", Icons.Default.History)
+}
+
+/**
+ * Mendapatkan sapaan dinamis berdasarkan jam sistem saat ini (KMP Safe)
+ */
+fun getGreeting(): String {
+    val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    return when (now.hour) {
+        in 5..10 -> "Selamat Pagi"
+        in 11..14 -> "Selamat Siang"
+        in 15..18 -> "Selamat Sore"
+        else -> "Selamat Malam"
+    }
 }
 
 fun formatTimestamp(millis: Long): String {
-    if (millis <= 0L) return "Just now"
-    val totalSeconds = millis / 1000
-    var days = totalSeconds / 86400
-    val timeOfDay = (totalSeconds + 7 * 3600) % 86400
-    val hours = timeOfDay / 3600
-    val minutes = (timeOfDay % 3600) / 60
-    var y = 1970
-    while (true) {
-        val daysInYear = if (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) 366 else 365
-        if (days < daysInYear) break
-        days -= daysInYear
-        y++
+    if (millis <= 0L) return "Baru saja"
+    return try {
+        val instant = Instant.fromEpochMilliseconds(millis)
+        val dt = instant.toLocalDateTime(TimeZone.currentSystemDefault())
+        "${dt.dayOfMonth.toString().padStart(2, '0')}/${dt.monthNumber.toString().padStart(2, '0')}/${dt.year}"
+    } catch (e: Exception) {
+        "Audit ID: $millis"
     }
-    val daysInMonth = intArrayOf(31, if (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) 29 else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
-    val months = arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-    var m = 0
-    while (days >= daysInMonth[m]) {
-        days -= daysInMonth[m]
-        m++
-    }
-    val day = days + 1
-    return "${months[m]} ${day.toString().padStart(2, '0')}, ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,64 +78,59 @@ fun StaffMainScreen(
     val allItems by viewModel.allSupplyItems.collectAsState()
     val allDrafts by viewModel.allDrafts.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(0) }
     var showAccountMenu by remember { mutableStateOf(false) }
 
     val tabs = listOf(BottomNavItem.Home, BottomNavItem.Requests, BottomNavItem.Inventory, BottomNavItem.History)
 
     Scaffold(
+        containerColor = RailLogColors.SurfaceSlate,
         topBar = {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(RailLightBlue, CircleShape),
+                            modifier = Modifier.size(32.dp).background(RailLogColors.PrimaryNavy, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("GL", fontSize = 12.sp, color = RailBlue, fontWeight = FontWeight.Bold)
+                            Text("GL", fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
                         }
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text("RailLog Nusantara", fontWeight = FontWeight.Bold, color = RailBlue)
+                        Text("RailLog Nusantara", fontWeight = FontWeight.ExtraBold, color = RailLogColors.PrimaryNavy)
                     }
                 },
                 actions = {
                     Box {
                         IconButton(onClick = { showAccountMenu = true }) {
-                            Icon(
-                                Icons.Default.AccountCircle,
-                                contentDescription = "Account",
-                                tint = Color.Gray,
-                                modifier = Modifier.size(30.dp)
-                            )
+                            Icon(Icons.Default.AccountCircle, "Akun", tint = RailLogColors.PrimaryNavy, modifier = Modifier.size(32.dp))
                         }
+                        // Dropdown dengan Kontras Tinggi (Background Putih Solid)
                         DropdownMenu(
-                            expanded = showAccountMenu,
+                            expanded = showAccountMenu, 
                             onDismissRequest = { showAccountMenu = false },
-                            modifier = Modifier.background(Color.White)
+                            modifier = Modifier.background(Color.White).border(2.dp, Color.Black, RoundedCornerShape(8.dp))
                         ) {
                             val savedName by viewModel.userPreferences.staffName.collectAsState(initial = "")
+                            val savedId by viewModel.userPreferences.staffId.collectAsState(initial = "")
+                            val savedPhone by viewModel.userPreferences.staffPhone.collectAsState(initial = "")
+                            
                             DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(
-                                            text = savedName.ifEmpty { "Staff Gudang" },
-                                            fontWeight = FontWeight.Bold,
-                                            color = RailBlue
-                                        )
-                                        Text("Role: Staff", fontSize = 12.sp, color = Color.Gray)
+                                text = { 
+                                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                        Text(savedName.ifEmpty { "Staff Logistik" }, fontWeight = FontWeight.ExtraBold, color = Color.Black, fontSize = 16.sp)
+                                        if (savedId.isNotEmpty()) Text("NIP: $savedId", fontSize = 13.sp, color = Color.Black, fontWeight = FontWeight.Bold)
+                                        if (savedPhone.isNotEmpty()) Text("WA: $savedPhone", fontSize = 13.sp, color = Color.Black, fontWeight = FontWeight.Bold)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text("PERAN: $userRole", fontSize = 11.sp, color = RailLogColors.PrimaryNavy, fontWeight = FontWeight.ExtraBold)
                                     }
                                 },
                                 onClick = { showAccountMenu = false }
                             )
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                            HorizontalDivider(color = Color.Black, thickness = 1.dp)
                             DropdownMenuItem(
-                                text = { Text("Logout", color = CriticalRed, fontWeight = FontWeight.Medium) },
+                                text = { Text("LOGOUT SISTEM", color = RailLogColors.ErrorRed, fontWeight = FontWeight.ExtraBold) },
                                 onClick = { showAccountMenu = false; onLogout() },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Logout, contentDescription = "Logout", tint = CriticalRed)
-                                }
+                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, null, tint = RailLogColors.ErrorRed) }
                             )
                         }
                     }
@@ -148,11 +141,11 @@ fun StaffMainScreen(
         floatingActionButton = {
             if (selectedTab == 1) {
                 FloatingActionButton(
-                    onClick = onNavigateToNewRequisition,
-                    containerColor = RailBlue,
+                    onClick = onNavigateToNewRequisition, 
+                    containerColor = RailLogColors.PrimaryNavy, 
                     contentColor = Color.White
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "New Request")
+                    Icon(Icons.Default.Add, "Tambah", tint = Color.White)
                 }
             }
         },
@@ -161,181 +154,82 @@ fun StaffMainScreen(
                 tabs.forEachIndexed { index, item ->
                     NavigationBarItem(
                         icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title, fontSize = 10.sp) },
+                        label = { Text(item.title, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold) },
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = RailBlue,
-                            selectedTextColor = RailBlue,
-                            indicatorColor = RailLightBlue
+                            selectedIconColor = RailLogColors.PrimaryNavy,
+                            selectedTextColor = RailLogColors.PrimaryNavy,
+                            unselectedTextColor = Color.Black,
+                            indicatorColor = RailLogColors.AISurface
                         )
                     )
                 }
             }
         }
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .background(Color(0xFFFAFAFA))
-        ) {
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             when (selectedTab) {
-                0 -> StaffHomeTab(
-                    userRole = userRole,
-                    allItems = allItems,
-                    onStartNew = onNavigateToNewRequisition,
-                    onViewAllActivity = { selectedTab = 3 }
-                )
-                1 -> StaffRequestsTab(
-                    viewModel = viewModel,
-                    allDrafts = allDrafts,
-                    onNavigateToResumeDraft = onNavigateToResumeDraft
-                )
-                2 -> StaffInventoryTab(viewModel = viewModel)
-                3 -> StaffHistoryTab(viewModel = viewModel)
+                0 -> StaffHomeTab(userRole, allItems, onNavigateToNewRequisition, { selectedTab = 3 })
+                1 -> StaffRequestsTab(viewModel, allDrafts, onNavigateToResumeDraft)
+                2 -> StaffInventoryTab(viewModel)
+                3 -> StaffHistoryTab(viewModel)
             }
         }
     }
 }
 
-// ==================== HOME TAB ====================
 @Composable
-fun StaffHomeTab(
-    userRole: String,
-    allItems: List<SupplyItem>,
-    onStartNew: () -> Unit,
-    onViewAllActivity: () -> Unit
-) {
-    val pendingCount = allItems.count { it.status.name == "PENDING" }
-    val criticalCount = allItems.count { it.priority.name == "CRITICAL" || it.priority.name == "HIGH" }
+fun StaffHomeTab(userRole: String, allItems: List<SupplyItem>, onStart: () -> Unit, onViewAll: () -> Unit) {
+    val pending = allItems.count { it.status.name == "PENDING" }
+    val critical = allItems.count { it.priority.name == "CRITICAL" || it.priority.name == "HIGH" }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            // SAPAAN DINAMIS JAM SISTEM
             Text(
-                "Good Morning,\n$userRole",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = RailBlue,
+                "${getGreeting()},\n$userRole", 
+                fontSize = 24.sp, 
+                fontWeight = FontWeight.ExtraBold, 
+                color = RailLogColors.PrimaryNavy, 
                 lineHeight = 30.sp
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(if (pendingCount > 0) CriticalRed else SafeGreen, CircleShape)
-                )
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                Box(modifier = Modifier.size(8.dp).background(if (pending > 0) RailLogColors.WarningAmber else RailLogColors.SuccessEmerald, CircleShape))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    if (pendingCount > 0) "$pendingCount Pending Requisitions" else "All systems normal",
-                    color = MutedText,
-                    fontSize = 14.sp
-                )
+                Text(if (pending > 0) "$pending Permintaan Audit Tertunda" else "Status Operasional Aman", color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
             }
         }
 
         item {
-            Card(
-                onClick = onStartNew,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(88.dp),
-                colors = CardDefaults.cardColors(containerColor = RailBlue),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            "Start New Requisition",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp
-                        )
-                        Text(
-                            "Initiate a 5-step material request",
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontSize = 12.sp
-                        )
+            Card(onClick = onStart, modifier = Modifier.fillMaxWidth().height(100.dp), colors = CardDefaults.cardColors(containerColor = RailLogColors.PrimaryNavy), shape = RoundedCornerShape(12.dp)) {
+                Row(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Form Pengadaan Audit", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                        Text("Mulai alur 5-langkah profesional", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
                     }
-                    Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                    Icon(Icons.Default.PostAdd, null, tint = Color.White, modifier = Modifier.size(36.dp))
                 }
             }
         }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                MetricCard(
-                    Modifier.weight(1f),
-                    Icons.Default.Assignment,
-                    "Total Items",
-                    allItems.size.toString(),
-                    MutedText
-                )
-                MetricCard(
-                    Modifier.weight(1f),
-                    Icons.Default.WarningAmber,
-                    "High Priority",
-                    criticalCount.toString(),
-                    CriticalRed,
-                    CriticalRedBg
-                )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MetricCard(Modifier.weight(1f), Icons.Default.Inventory2, "Total Stok", allItems.size.toString(), RailLogColors.PrimaryNavy)
+                MetricCard(Modifier.weight(1f), Icons.Default.ReportProblem, "Peringatan", critical.toString(), RailLogColors.ErrorRed, RailLogColors.ErrorBackground)
             }
         }
 
         item {
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "Recent Activity",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = RailBlue
-                )
-                Text(
-                    "View All",
-                    fontSize = 12.sp,
-                    color = RailBlue,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .clickable { onViewAllActivity() }
-                        .padding(vertical = 4.dp, horizontal = 8.dp)
-                )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Audit Terbaru", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = RailLogColors.PrimaryNavy)
+                TextButton(onClick = onViewAll) { Text("LIHAT SEMUA", color = RailLogColors.PrimaryNavy, fontWeight = FontWeight.ExtraBold) }
             }
         }
 
         if (allItems.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(32.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("No recent activity yet.", color = Color.Gray, fontSize = 14.sp)
-                }
-            }
+            item { EmptyStateBox("Belum ada data audit logistik.") }
         } else {
             items(allItems.reversed().take(3)) { item -> HistoryCard(item) }
         }
@@ -343,519 +237,219 @@ fun StaffHomeTab(
     }
 }
 
-// ==================== REQUESTS TAB ====================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StaffRequestsTab(
-    viewModel: StaffMainViewModel,
-    allDrafts: List<DraftItem>,
-    onNavigateToResumeDraft: (String) -> Unit
-) {
-    var selectedSubTab by remember { mutableIntStateOf(0) }
-    val subTabs = listOf("All", "Drafts", "In Progress", "Completed")
+fun StaffRequestsTab(viewModel: StaffMainViewModel, allDrafts: List<DraftItem>, onResume: (String) -> Unit) {
+    var subTab by remember { mutableIntStateOf(0) }
+    val labels = listOf("Semua", "Draf", "Audit", "Selesai")
+    val query by viewModel.searchQuery.collectAsState()
+    val items by viewModel.filteredRequestItems.collectAsState()
 
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val filteredItems by viewModel.filteredRequestItems.collectAsState()
-
-    val displayItems = when (selectedSubTab) {
-        2 -> filteredItems.filter { it.status.name == "PENDING" }
-        3 -> filteredItems.filter { it.status.name == "VERIFIED" || it.status.name == "REJECTED" }
-        else -> filteredItems
+    val display = when (subTab) {
+        2 -> items.filter { it.status.name == "PENDING" }
+        3 -> items.filter { it.status.name == "VERIFIED" || it.status.name == "REJECTED" }
+        else -> items
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            "Requests",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = RailBlue,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-
-        // ✅ Search bar fungsional
-        FunctionalSearchBar(
-            value = searchQuery,
-            onValueChange = { viewModel.updateSearchQuery(it) },
-            placeholder = "Search by name or ID..."
-        )
+        Text("Daftar Pengajuan", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = RailLogColors.PrimaryNavy, modifier = Modifier.padding(16.dp))
+        FunctionalSearchBar(query, { viewModel.updateSearchQuery(it) }, "Cari berdasarkan nama atau kode...")
 
         ScrollableTabRow(
-            selectedTabIndex = selectedSubTab,
-            containerColor = Color.Transparent,
-            edgePadding = 16.dp,
+            selectedTabIndex = subTab, containerColor = Color.Transparent, edgePadding = 16.dp,
             indicator = { tabPositions ->
-                SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedSubTab]),
-                    color = RailBlue
-                )
+                SecondaryIndicator(Modifier.tabIndicatorOffset(tabPositions[subTab]), color = RailLogColors.PrimaryNavy)
             },
-            divider = { HorizontalDivider(color = Color.LightGray.copy(alpha = 0.5f)) }
+            divider = { HorizontalDivider(color = Color.Black.copy(alpha = 0.1f)) }
         ) {
-            subTabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = selectedSubTab == index,
-                    onClick = { selectedSubTab = index },
-                    text = {
-                        Text(
-                            title,
-                            fontWeight = if (selectedSubTab == index) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selectedSubTab == index) RailBlue else Color.Gray
-                        )
-                    }
-                )
+            labels.forEachIndexed { i, title ->
+                Tab(selected = subTab == i, onClick = { subTab = i }, text = { Text(title, fontWeight = if (subTab == i) FontWeight.Bold else FontWeight.Normal, color = if(subTab == i) RailLogColors.PrimaryNavy else Color.Black) })
             }
         }
 
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            when (selectedSubTab) {
-                0 -> {
-                    if (allDrafts.isEmpty() && displayItems.isEmpty()) {
-                        item {
-                            EmptyStateBox("No requests or drafts found.")
-                        }
-                    } else {
-                        items(allDrafts) { draft ->
-                            DraftCard(draft) { onNavigateToResumeDraft(draft.draftId) }
-                        }
-                        items(displayItems) { item -> RequestProgressCard(item) }
-                    }
-                }
-                1 -> {
-                    if (allDrafts.isEmpty()) {
-                        item { EmptyStateBox("No Drafts Saved. Start a new requisition to auto-save.") }
-                    } else {
-                        items(allDrafts) { draft ->
-                            DraftCard(draft) { onNavigateToResumeDraft(draft.draftId) }
-                        }
-                    }
-                }
-                else -> {
-                    if (displayItems.isEmpty()) {
-                        item { EmptyStateBox("No requests found.") }
-                    } else {
-                        items(displayItems) { item -> RequestProgressCard(item) }
-                    }
-                }
+        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (subTab == 1 || subTab == 0) {
+                items(allDrafts) { DraftCard(it) { onResume(it.draftId) } }
+            }
+            if (subTab != 1) {
+                items(display) { item -> HistoryCard(item) }
+            }
+            if (display.isEmpty() && (subTab != 1 || allDrafts.isEmpty())) {
+                item { EmptyStateBox("Data tidak ditemukan.") }
             }
             item { Spacer(modifier = Modifier.height(72.dp)) }
         }
     }
 }
 
-// ==================== INVENTORY TAB ====================
 @Composable
 fun StaffInventoryTab(viewModel: StaffMainViewModel) {
-    val categories = listOf("All", "Infrastructure", "Spare Parts", "Tools")
-    val searchQuery by viewModel.searchQuery.collectAsState()
-    val selectedCategory by viewModel.inventoryCategory.collectAsState()
-    val filteredItems by viewModel.filteredInventoryItems.collectAsState()
+    val cats = listOf("All", "Infrastructure", "Bogie", "Propulsion", "Braking", "Tools")
+    val query by viewModel.searchQuery.collectAsState()
+    val selectedCat by viewModel.inventoryCategory.collectAsState()
+    val items by viewModel.filteredInventoryItems.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // ✅ Search bar fungsional
-        FunctionalSearchBar(
-            value = searchQuery,
-            onValueChange = { viewModel.updateSearchQuery(it) },
-            placeholder = "Search by name or part code..."
-        )
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(categories) { category ->
-                val isSelected = selectedCategory == category
-                Box(
-                    modifier = Modifier
-                        .clickable { viewModel.updateInventoryCategory(category) }
-                        .background(
-                            if (isSelected) RailBlue else Color.White,
-                            RoundedCornerShape(8.dp)
-                        )
-                        .border(1.dp, if (isSelected) RailBlue else Color.LightGray, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        category,
-                        color = if (isSelected) Color.White else RailBlue,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+        FunctionalSearchBar(query, { viewModel.updateSearchQuery(it) }, "Cari di gudang...")
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(cats) { cat ->
+                FilterChip(
+                    selected = selectedCat == cat, onClick = { viewModel.updateInventoryCategory(cat) },
+                    label = { Text(cat, fontWeight = FontWeight.ExtraBold) },
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = RailLogColors.PrimaryNavy, selectedLabelColor = Color.White)
+                )
             }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LazyColumn(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (filteredItems.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "No items found.\nPending requests need admin approval first.",
-                            textAlign = TextAlign.Center,
-                            color = Color.Gray,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-            } else {
-                items(filteredItems) { item -> InventoryItemCard(item) }
-            }
+        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (items.isEmpty()) item { EmptyStateBox("Inventaris kosong.") }
+            else items(items) { InventoryItemCard(it) }
             item { Spacer(modifier = Modifier.height(72.dp)) }
         }
     }
 }
 
-// ==================== HISTORY TAB ====================
 @Composable
 fun StaffHistoryTab(viewModel: StaffMainViewModel) {
-    val filters = listOf("All Requests", "Pending", "Verified", "Rejected")
-    val historySearch by viewModel.historySearchQuery.collectAsState()
-    val selectedFilter by viewModel.historyFilter.collectAsState()
-    val filteredItems by viewModel.filteredHistoryItems.collectAsState()
+    val filters = listOf("Semua", "Pending", "Terverifikasi", "Ditolak")
+    val query by viewModel.historySearchQuery.collectAsState()
+    val filter by viewModel.historyFilter.collectAsState()
+    val items by viewModel.filteredHistoryItems.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            "Request History",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = RailBlue,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-
-        // ✅ Search bar fungsional (pisah dari inventory)
-        FunctionalSearchBar(
-            value = historySearch,
-            onValueChange = { viewModel.updateHistorySearchQuery(it) },
-            placeholder = "Search ID or Project..."
-        )
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 8.dp)
-        ) {
-            items(filters) { filter ->
-                val isSelected = selectedFilter == filter
-                Box(
-                    modifier = Modifier
-                        .clickable { viewModel.updateHistoryFilter(filter) }
-                        .border(1.dp, if (isSelected) RailBlue else Color.LightGray, RoundedCornerShape(4.dp))
-                        .background(if (isSelected) RailBlue else Color.White, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        filter,
-                        color = if (isSelected) Color.White else Color.DarkGray,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
+        Text("Riwayat Audit", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = RailLogColors.PrimaryNavy, modifier = Modifier.padding(16.dp))
+        FunctionalSearchBar(query, { viewModel.updateHistorySearchQuery(it) }, "Cari ID Proyek...")
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(filters) { f ->
+                FilterChip(selected = filter.contains(f, true) || (f == "Semua" && filter == "All Requests"), onClick = { viewModel.updateHistoryFilter(if(f=="Semua") "All Requests" else f) }, label = { Text(f, fontWeight = FontWeight.Bold) })
             }
         }
-
-        LazyColumn(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (filteredItems.isEmpty()) {
-                item { EmptyStateBox("No requests found.") }
-            } else {
-                items(filteredItems) { item -> HistoryCard(item) }
-            }
+        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (items.isEmpty()) item { EmptyStateBox("Belum ada riwayat.") }
+            else items(items) { HistoryCard(it) }
             item { Spacer(modifier = Modifier.height(72.dp)) }
         }
     }
 }
 
-// ==================== REUSABLE COMPONENTS ====================
-
 @Composable
-fun FunctionalSearchBar(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String = "Search..."
-) {
+fun FunctionalSearchBar(value: String, onValueChange: (String) -> Unit, placeholder: String) {
     OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        placeholder = { Text(placeholder, color = Color.Gray) },
-        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Gray) },
-        trailingIcon = {
-            if (value.isNotEmpty()) {
-                IconButton(onClick = { onValueChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.Gray)
-                }
-            }
-        },
-        shape = RoundedCornerShape(8.dp),
+        value = value, onValueChange = onValueChange,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        placeholder = { Text(placeholder, color = Color.Black.copy(alpha = 0.6f)) },
+        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Black) },
+        trailingIcon = { if (value.isNotEmpty()) IconButton(onClick = { onValueChange("") }) { Icon(Icons.Default.Close, null, tint = Color.Black) } },
+        shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            unfocusedContainerColor = Color.White,
-            focusedContainerColor = Color.White,
-            focusedBorderColor = RailBlue,
-            unfocusedBorderColor = Color.LightGray
+            focusedTextColor = Color.Black, unfocusedTextColor = Color.Black,
+            focusedContainerColor = Color.White, unfocusedContainerColor = Color.White,
+            unfocusedBorderColor = Color.Black, focusedBorderColor = RailLogColors.PrimaryNavy
         ),
         singleLine = true
     )
 }
 
 @Composable
-fun EmptyStateBox(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 32.dp),
-        contentAlignment = Alignment.Center
-    ) {
+fun EmptyStateBox(msg: String) {
+    Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                Icons.Default.Inbox,
-                contentDescription = null,
-                tint = Color.LightGray,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(message, color = Color.Gray, fontSize = 14.sp, textAlign = TextAlign.Center)
+            Icon(Icons.Default.Inbox, null, tint = Color.Black, modifier = Modifier.size(64.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(msg, color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
 
 @Composable
 fun HistoryCard(item: SupplyItem) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(2.dp, Color.Black)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = item.partCode.ifEmpty { "REQ-2023-089" },
-                    color = RailBlue,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .background(Color(0xFFF3F4F6), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Icon(
-                        Icons.Default.CalendarToday,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        formatTimestamp(item.createdAt.toEpochMilliseconds()),
-                        fontSize = 12.sp,
-                        color = Color.DarkGray
-                    )
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(item.partCode, color = RailLogColors.PrimaryNavy, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                Box(modifier = Modifier.background(RailLogColors.AISurface, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    Text(formatTimestamp(item.createdAt.toEpochMilliseconds()), fontSize = 11.sp, color = RailLogColors.PrimaryNavy, fontWeight = FontWeight.ExtraBold)
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Text(text = item.name, fontSize = 14.sp, color = Color.DarkGray)
+            Text(item.name, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
             Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Inventory2,
-                        contentDescription = null,
-                        tint = Color.Gray,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Icon(Icons.Default.Inventory2, null, tint = Color.Black, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("${item.quantity} Items", fontSize = 14.sp, color = Color.Gray)
+                    Text("${item.quantity} Unit", fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.ExtraBold)
                 }
-                val (bgStatusColor, textStatusColor, dotColor) = when (item.status.name) {
-                    "VERIFIED" -> Triple(Color(0xFFECFDF5), SafeGreen, SafeGreen)
-                    "PENDING"  -> Triple(Color(0xFFFFFBEB), Color(0xFFD97706), Color(0xFFF59E0B))
-                    "REJECTED" -> Triple(Color(0xFFFEF2F2), CriticalRed, CriticalRed)
-                    else       -> Triple(Color(0xFFF3F4F6), Color.Gray, Color.DarkGray)
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .background(bgStatusColor, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Box(modifier = Modifier.size(6.dp).background(dotColor, CircleShape))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = item.status.name,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = textStatusColor
-                    )
-                }
+                StatusChip(item.status.name)
             }
         }
     }
 }
 
 @Composable
+fun StatusChip(status: String) {
+    val bgColor = when (status) {
+        "VERIFIED" -> RailLogColors.SuccessBackground
+        "PENDING" -> RailLogColors.WarningBackground
+        "REJECTED" -> RailLogColors.ErrorBackground
+        else -> RailLogColors.SurfaceSlate
+    }
+    val textColor = when (status) {
+        "VERIFIED" -> RailLogColors.SuccessEmerald
+        "PENDING" -> RailLogColors.WarningAmber
+        "REJECTED" -> RailLogColors.ErrorRed
+        else -> Color.Black
+    }
+    Box(modifier = Modifier.background(bgColor, RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 4.dp)) {
+        Text(status, color = textColor, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+    }
+}
+
+@Composable
 fun DraftCard(draft: DraftItem, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFD1D5DB))
-    ) {
+    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() }, colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(2.dp, RailLogColors.PrimaryNavy)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    draft.projectTitle.ifEmpty { "Untitled Draft" },
-                    color = RailBlue,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
-                Box(
-                    modifier = Modifier
-                        .background(Color(0xFFE5E7EB), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text("Draft", fontSize = 10.sp, color = Color.DarkGray)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(draft.projectTitle.ifEmpty { "Audit Requisition" }, color = RailLogColors.PrimaryNavy, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+                Box(modifier = Modifier.background(Color.Black, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) {
+                    Text("DRAF", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Saved at Step ${draft.currentStep} of 5", fontSize = 12.sp, color = MutedText)
+            Text("Langkah ${draft.currentStep} dari 5", fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
-            LinearProgressIndicator(
-                progress = { draft.currentStep / 5f },
-                modifier = Modifier.fillMaxWidth().height(4.dp),
-                color = Color.Gray,
-                trackColor = Color.LightGray.copy(alpha = 0.5f)
-            )
+            LinearProgressIndicator(progress = { draft.currentStep / 5f }, modifier = Modifier.fillMaxWidth().height(8.dp), color = RailLogColors.PrimaryNavy, trackColor = RailLogColors.BorderGray)
         }
     }
 }
 
 @Composable
 fun InventoryItemCard(item: SupplyItem) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(item.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text("ID: ${item.partCode}", color = MutedText, fontSize = 12.sp)
-                    Text(item.category.name, color = MutedText, fontSize = 11.sp)
-                }
-                Box(
-                    modifier = Modifier
-                        .background(SafeGreenBg, RoundedCornerShape(4.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text("Qty: ${item.quantity}", fontSize = 12.sp, color = SafeGreen, fontWeight = FontWeight.Bold)
-                }
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(2.dp, Color.Black)) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.name, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = Color.Black)
+                Text("KODE: ${item.partCode}", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(item.category.name, color = RailLogColors.PrimaryNavy, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+            }
+            Box(modifier = Modifier.background(RailLogColors.SuccessBackground, RoundedCornerShape(4.dp)).border(1.dp, RailLogColors.SuccessEmerald, RoundedCornerShape(4.dp)).padding(horizontal = 10.dp, vertical = 6.dp)) {
+                Text("${item.quantity} ${item.unit}", fontSize = 13.sp, color = RailLogColors.SuccessEmerald, fontWeight = FontWeight.ExtraBold)
             }
         }
     }
 }
 
 @Composable
-fun RequestProgressCard(item: SupplyItem) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color.LightGray)
-    ) {
+fun MetricCard(modifier: Modifier, icon: ImageVector, title: String, count: String, color: Color, bg: Color = RailLogColors.AISurface) {
+    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(2.dp, Color.Black)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    item.partCode.ifEmpty { "REQ-N/A" },
-                    color = RailBlue,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
-                )
-                Box(
-                    modifier = Modifier
-                        .background(Color.LightGray.copy(0.2f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(item.status.name, fontSize = 10.sp, color = Color.DarkGray)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Box(modifier = Modifier.size(32.dp).background(bg, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, tint = color, modifier = Modifier.size(18.dp))
                 }
+                Text(count, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = RailLogColors.PrimaryNavy)
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(item.name, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(title, fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.ExtraBold)
         }
     }
-}
-
-@Composable
-fun MetricCard(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    title: String,
-    count: String,
-    iconTint: Color,
-    iconBg: Color = Color.LightGray.copy(alpha = 0.2f)
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .background(iconBg, RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
-                }
-                Text(count, fontWeight = FontWeight.Bold, fontSize = 24.sp, color = RailBlue)
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(title, fontSize = 12.sp, color = MutedText, fontWeight = FontWeight.Medium)
-        }
-    }
-}
-
-@Composable
-fun SearchBarUI(placeholder: String = "Search by name or ID...") {
-    FunctionalSearchBar(value = "", onValueChange = {}, placeholder = placeholder)
 }
