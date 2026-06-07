@@ -18,7 +18,7 @@ actual class DatabaseDriverFactory(
         return AndroidSqliteDriver(
             schema = RailLogDatabase.Schema,
             context = context,
-            name = "raillog.db"
+            name = "raillog_v2.db"
         )
     }
 }

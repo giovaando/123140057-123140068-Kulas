@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/Platform-Android%20%7C%20iOS-brightgreen?style=for-the-badge&logo=kotlin" />
   <img src="https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?style=for-the-badge&logo=kotlin" />
   <img src="https://img.shields.io/badge/AI-Google%20Gemini-4285F4?style=for-the-badge&logo=google" />
-  <img src="https://img.shields.io/badge/Sprint-1%20%E2%9C%85-success?style=for-the-badge" />
+  <img src="https://img.shields.io/badge/Sprint-4%20%E2%9C%85-success?style=for-the-badge" />
 </p>
 
 ---
@@ -39,17 +39,17 @@
 **RailLog Nusantara** adalah aplikasi mobile lintas platform (Android & iOS) yang dirancang untuk mendukung operasional logistik pada industri manufaktur kereta api. Aplikasi ini mengintegrasikan kecerdasan buatan berbasis Google Gemini untuk membantu tim logistik dalam:
 
 - **Memantau rantai pasok** komponen dan suku cadang kereta api secara real-time
-- **Memverifikasi dokumen teknis** seperti lembar spesifikasi, sertifikat kepatuhan, dan laporan inspeksi menggunakan AI
-- **Mengelola inventaris** komponen dengan kategorisasi berbasis jenis subsistem kereta api
-- **Menganalisis prioritas pengadaan** berdasarkan status dan urgensi kebutuhan komponen
+- **Memverifikasi dokumen teknis** menggunakan AI Form Validator otomatis (Sprint 4)
+- **Mengelola inventaris** dengan alur Requisition Wizard 5-langkah yang bersih
+- **Menganalisis prioritas pengadaan** dengan bantuan Contextual AI Assistant
 
-Aplikasi ini dibangun dengan pendekatan **Adaptive UI** yang menyesuaikan tampilan berdasarkan peran pengguna (operator gudang, manajer logistik, inspektor teknis).
+Aplikasi ini dibangun dengan pendekatan **Adaptive UI** yang menyesuaikan tampilan berdasarkan peran pengguna (Staff Gudang dan Admin Logistik).
 
 ---
 
 ## ✨ Fitur Utama
 
-### Sprint 1 (Foundation) — Saat Ini
+### Sprint 1 (Foundation) — ✅ Selesai
 - [x] Setup project Kotlin Multiplatform
 - [x] Arsitektur Clean Architecture + MVVM terdefinisi
 - [x] Domain model `SupplyItem` dan `TechnicalDocument`
@@ -58,25 +58,26 @@ Aplikasi ini dibangun dengan pendekatan **Adaptive UI** yang menyesuaikan tampil
 - [x] Koin Dependency Injection aktif
 - [x] Build berhasil tanpa error
 
-### Sprint 2 (Core Features) — Rencana
-- [ ] Dashboard ringkasan status rantai pasok
-- [ ] Form input item suku cadang baru
-- [ ] Daftar komponen dengan filter status & kategori
-- [ ] Penyimpanan lokal dengan SQLDelight
-- [ ] Navigasi antar screen
+### Sprint 2 (Core Features) — ✅ Selesai
+- [x] Dashboard ringkasan status rantai pasok
+- [x] Form input item suku cadang baru (CRUD)
+- [x] Daftar komponen dengan filter status & kategori
+- [x] Penyimpanan lokal dengan SQLDelight
+- [x] Navigasi antar screen (Staff & Admin)
 
-### Sprint 3 (Advanced) — Rencana
-- [ ] Verifikasi dokumen teknis via AI (Gemini)
-- [ ] Pencarian komponen dengan debounce
-- [ ] Filter berdasarkan kategori subsistem kereta
-- [ ] Notifikasi komponen kritis
-- [ ] Offline-first support
+### Sprint 3 (Advanced) — ✅ Selesai
+- [x] Verifikasi dokumen teknis via AI (Gemini)
+- [x] Pencarian komponen dengan debounce 300ms
+- [x] Filter berdasarkan kategori subsistem kereta
+- [x] Notifikasi komponen kritis
+- [x] Offline-first support dengan Auto-save Draft
 
-### Sprint 4 (AI & Polish) — Rencana
-- [ ] Analisis ringkasan dokumen teknis via AI
-- [ ] Saran pengadaan berbasis AI
-- [ ] UI polish dan animasi adaptif
-- [ ] Unit tests (target 10+)
+### Sprint 4 (AI & Polish) — ✅ Selesai (Saat Ini)
+- [x] Refactor Requisition Wizard (Alur 5-langkah bersih)
+- [x] Implementasi AI Form Validator Otomatis di sisi Admin
+- [x] Contextual AI Assistant (Membaca data stok gudang)
+- [x] UI Polish: Font Geist & Branding Navy Blue
+- [x] Unit tests (✅ 12 Unit Tests Passed)
 
 ### Sprint 5 (Final) — Rencana
 - [ ] Demo-ready build
@@ -99,7 +100,7 @@ Aplikasi ini dibangun dengan pendekatan **Adaptive UI** yang menyesuaikan tampil
 │  └───────────────┘        └───────┬───────┘                 │
 └───────────────────────────────────┼─────────────────────────┘
                                     │
-┌───────────────────────────────────┼─────────────────────────┐
+┌───────────────────────────────────┼─────────────────────────┘
 │                      DOMAIN LAYER │                          │
 │                    ┌──────────────▼──────────────┐          │
 │                    │  Use Cases (Business Logic) │          │
@@ -124,7 +125,7 @@ Aplikasi ini dibangun dengan pendekatan **Adaptive UI** yang menyesuaikan tampil
 
 ## 🎨 Design System Tokens
 
-- Colors: Surface Slate (#F7F9FB), Primary Navy (#1E3A8A), Success Emerald (#10B981).
+- Colors: Primary Navy (#00236F), Success Emerald (#10B981), Surface Slate (#F7F9FB).
 - Typography: Geist (UI) dan Geist Mono (Technical Data/Tracking ID).
 - Grid: Strict 4px baseline grid untuk presisi industrial.
 
@@ -138,8 +139,8 @@ Aplikasi ini dibangun dengan pendekatan **Adaptive UI** yang menyesuaikan tampil
 | **Networking** | Ktor Client |
 | **Local Database** | SQLDelight |
 | **Preferences** | DataStore |
-| **Dependency Injection** | Koin |
-| **AI Integration** | Google Gemini API |
+| **Dependency Injection** | Koin 4.x |
+| **AI Integration** | Google Gemini API (gemini-2.0-flash) |
 | **Testing** | Kotlin Test, Turbine |
 | **Platform** | Kotlin Multiplatform (Android + iOS) |
 
@@ -170,156 +171,59 @@ composeApp/src/
 │   │   │   └── TechnicalDocument.kt # Model dokumen teknis
 │   │   ├── repository/
 │   │   │   ├── SupplyRepository.kt
-│   │   │   └── DocumentRepository.kt
+│   │   │   └── AIRepository.kt
 │   │   └── usecase/                # Business logic
 │   │
 │   └── presentation/
 │       ├── navigation/             # Routes & NavHost
 │       ├── screens/
-│       │   ├── dashboard/          # Dashboard logistik
-│       │   ├── supply/             # Manajemen suku cadang
-│       │   ├── document/           # Verifikasi dokumen
-│       │   └── ai/                 # AI Assistant
+│       │   ├── staff_main/         # Dashboard & Status
+│       │   ├── admin_main/         # Verification Queue
+│       │   ├── requisition/        # 5-Step Wizard
+│       │   └── ai/                 # Contextual Assistant
 │       ├── components/             # Komponen UI reusable
-│       └── theme/                  # Material theme
-│
-├── commonMain/sqldelight/          # SQLDelight schema
-│   ├── SupplyItem.sq
-│   └── TechnicalDocument.sq
-│
-├── androidMain/kotlin/             # Android-specific
-└── iosMain/kotlin/                 # iOS-specific
+│       └── theme/                  # Material theme (Geist Font)
 ```
 
 ---
 
 ## 🚀 Cara Menjalankan
 
-### Prasyarat
-
-| Software | Versi Minimum |
-|----------|---------------|
-| Android Studio | Ladybug (2024.2.1) |
-| JDK | 17 |
-| Git | 2.x |
-| Android SDK | API 34+ |
-
 ### Setup
 
-**1. Clone repository**
-```bash
-git clone https://github.com/[USERNAME_FORK]/Proyek-Pengembangan-Aplikasi-Mobile.git
-cd Proyek-Pengembangan-Aplikasi-Mobile
-git checkout project/123140057-123140068-RailLog
-```
-
-**2. Setup `local.properties`**
+**1. Setup `local.properties`**
 ```bash
 cp local.properties.example local.properties
 ```
 
-Edit `local.properties`:
+Edit `local.properties` (Masukkan API Key Gemini):
 ```properties
-sdk.dir=C\:\\Users\\[USERNAME]\\AppData\\Local\\Android\\Sdk
 GEMINI_API_KEY=your_api_key_here
 ```
 
-Dapatkan API key gratis di: https://aistudio.google.com
-
-**3. Konfigurasi JDK di Android Studio**
-
-`File → Settings → Build, Execution, Deployment → Build Tools → Gradle`
-
-Pastikan **Gradle JDK** mengarah ke **JDK 17**.
-
-**4. Sync & Build**
+**2. Sync & Build**
+Gunakan **JDK 17** untuk Gradle. Jalankan:
 ```bash
 ./gradlew :composeApp:assembleDebug
 ```
 
-**5. Run di Android**
-
-Pilih run configuration `composeApp` di Android Studio, lalu klik **Run**.
-
 ---
 
-## 🗃️ Domain Model
+## 🧪 Validasi & Testing
 
-### SupplyItem — Suku Cadang Kereta Api
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | Long | Primary key |
-| `partCode` | String | Kode part unik |
-| `name` | String | Nama komponen |
-| `category` | PartCategory | Kategori subsistem |
-| `quantity` | Int | Jumlah unit |
-| `unit` | String | Satuan (pcs, set, kg) |
-| `supplier` | String | Nama pemasok |
-| `status` | SupplyStatus | Status pengiriman |
-| `priority` | Priority | Tingkat urgensi |
-| `documentRef` | String? | Referensi dokumen terkait |
-
-**Kategori Komponen (`PartCategory`):**
-- `BOGIE` — Bogie & Roda
-- `PROPULSION` — Propulsi & Motor
-- `BRAKING` — Sistem Pengereman
-- `ELECTRICAL` — Kelistrikan
-- `BODY` — Bodi & Struktur
-- `INTERIOR` — Interior
-- `SAFETY` — Keselamatan
-- `MAINTENANCE` — Pemeliharaan
-
-**Status Supply (`SupplyStatus`):**
-- `PENDING` → `IN_TRANSIT` → `RECEIVED` → `VERIFIED` / `REJECTED`
-
----
-
-### TechnicalDocument — Dokumen Teknis
-
-| Field | Tipe | Deskripsi |
-|-------|------|-----------|
-| `id` | Long | Primary key |
-| `title` | String | Judul dokumen |
-| `documentType` | DocumentType | Jenis dokumen |
-| `content` | String | Isi/teks dokumen |
-| `linkedItemId` | Long? | Referensi ke SupplyItem |
-| `verificationStatus` | VerificationStatus | Status verifikasi AI |
-| `aiSummary` | String? | Ringkasan hasil analisis AI |
-
-**Jenis Dokumen (`DocumentType`):**
-- `SPEC_SHEET` — Lembar Spesifikasi
-- `INSPECTION_REPORT` — Laporan Inspeksi
-- `DELIVERY_NOTE` — Surat Jalan
-- `COMPLIANCE_CERT` — Sertifikat Kepatuhan
-- `MAINTENANCE_LOG` — Log Pemeliharaan
-
----
-
-## 🤖 Integrasi AI
-
-RailLog Nusantara menggunakan **Google Gemini API** untuk:
-
-| Fitur AI | Deskripsi |
-|----------|-----------|
-| **Verifikasi Dokumen** | Menganalisis dokumen teknis untuk mendeteksi inkonsistensi atau ketidaksesuaian standar |
-| **Ringkasan Otomatis** | Meringkas laporan inspeksi panjang menjadi poin-poin kritis |
-| **Saran Pengadaan** | Memberikan rekomendasi prioritas pengadaan berdasarkan data supply chain |
-| **Deteksi Anomali** | Menandai dokumen yang memerlukan perhatian khusus |
-
----
-
-## 🧪 Testing
+Proyek ini telah divalidasi dengan rangkaian unit test menyeluruh (12 skenario) untuk memastikan integritas logika bisnis.
 
 ```bash
-# Jalankan semua test
-./gradlew allTests
-
-# Unit test saja
+# Jalankan unit test
 ./gradlew :composeApp:testDebugUnitTest
 ```
 
-Target coverage Sprint 4: minimal 10 unit tests, 50%+ code coverage.
+**Cakupan Test:**
+- ✅ Validasi Regex Project Code (`[TYPE]-[REGION]-[CODE]`)
+- ✅ Logika `canSubmit` pada Requisition Wizard (Signature & Items check)
+- ✅ Filter Antrian Verifikasi Admin (Search & Status)
+- ✅ Pemetaan Data (Enum Mapping) Database
+- ✅ Filter Item Kritis untuk Notifikasi
 
 ---
 
@@ -328,41 +232,10 @@ Target coverage Sprint 4: minimal 10 unit tests, 50%+ code coverage.
 | Sprint | Minggu | Status | Target |
 |--------|--------|--------|--------|
 | Sprint 1: Foundation | 11 | ✅ Selesai | Setup, arsitektur, domain model |
-| Sprint 2: Core Features | 12 | 🔄 Akan datang | CRUD, navigasi, local storage |
-| Sprint 3: Advanced | 13 | — | Search, AI integration, offline |
-| Sprint 4: Polish | 14 | — | Testing, bug fix, UI polish |
-| Sprint 5: Final | 15 | — | Demo, APK, dokumentasi lengkap |
-
----
-
-## 📝 Panduan Kontribusi
-
-### Git Workflow
-
-```bash
-# Pastikan di branch yang benar
-git checkout project/123140057-123140068-RailLog
-
-# Sebelum mulai kerja, selalu pull dulu
-git pull origin project/123140057-123140068-RailLog
-
-# Commit dengan format yang benar
-git commit -m "feat: add supply item list screen"
-git commit -m "fix: resolve database migration issue"
-git commit -m "refactor: extract AI logic to use case"
-```
-
-### Commit Convention
-
-| Prefix | Penggunaan |
-|--------|------------|
-| `feat:` | Fitur baru |
-| `fix:` | Perbaikan bug |
-| `refactor:` | Refactoring kode |
-| `style:` | Perubahan UI/styling |
-| `test:` | Menambah/update test |
-| `docs:` | Update dokumentasi |
-| `chore:` | Maintenance |
+| Sprint 2: Core Features | 12 | ✅ Selesai | CRUD, navigasi, local storage |
+| Sprint 3: Advanced | 13 | ✅ Selesai | Search, AI integration, offline |
+| Sprint 4: Polish | 14 | ✅ Selesai | Testing, bug fix, UI polish |
+| Sprint 5: Final | 15 | 🔄 Rencana | Demo, APK, dokumentasi lengkap |
 
 ---
 
@@ -370,28 +243,9 @@ git commit -m "refactor: extract AI logic to use case"
 
 | Masalah | Solusi |
 |---------|--------|
-| `DefaultArtifactPublicationSet` error | Pastikan Gradle JDK = JDK 17, bukan JDK 20 |
-| `gradle-wrapper.properties not found` | Buat file wrapper manual atau jalankan `gradle wrapper --gradle-version 8.9` |
-| `GEMINI_API_KEY` kosong / 401 | Periksa `local.properties`, pastikan API key valid |
-| SQLDelight `no databases set up` | Pastikan blok `sqldelight { databases { ... } }` ada di `build.gradle.kts` |
-| Gradle sync lambat | Normal untuk sync pertama (~15 menit), pastikan internet stabil |
-
----
-
-## 📚 Referensi
-
-- [Kotlin Multiplatform](https://kotlinlang.org/docs/multiplatform.html)
-- [Compose Multiplatform](https://www.jetbrains.com/lp/compose-multiplatform/)
-- [SQLDelight](https://cashapp.github.io/sqldelight/)
-- [Koin DI](https://insert-koin.io/)
-- [Ktor Client](https://ktor.io/docs/welcome.html)
-- [Google Gemini API](https://ai.google.dev/docs)
-
----
-
-## 📄 Lisensi
-
-MIT License — dibuat untuk keperluan pembelajaran Pengembangan Aplikasi Mobile di ITERA.
+| `BorderStroke` error | Pastikan import `androidx.compose.foundation.BorderStroke` sudah ada |
+| AI Result Kosong | Pastikan `local.properties` sudah berisi API Key yang valid |
+| SQLDelight error | Jalankan Gradle Sync untuk men-generate class database |
 
 ---
 

@@ -2,49 +2,62 @@ package com.example.raillog.presentation.screens.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.raillog.domain.model.SupplyItem
+import com.example.raillog.data.local.datastore.UserPreferences
 import com.example.raillog.domain.repository.SupplyRepository
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import com.example.raillog.domain.model.Priority
+import com.example.raillog.domain.model.SupplyStatus
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 
 class HomeViewModel(
-    private val supplyRepository: SupplyRepository
+    private val repository: SupplyRepository,
+    private val userPreferences: UserPreferences
 ) : ViewModel() {
 
-    // Mengambil stream data dari database lokal dan memetakannya menjadi UI State
-    val uiState: StateFlow<HomeUiState> = supplyRepository.getAllItems()
-        .map { items ->
-            if (items.isEmpty()) {
-                HomeUiState.Empty
-            } else {
-                HomeUiState.Success(
-                    recentItems = items.take(10), // Menampilkan 10 item terbaru
-                    totalItems = items.size,
-                    criticalItems = items.count { it.priority.name == "CRITICAL" },
-                    pendingItems = items.count { it.status.name == "PENDING" }
-                )
-            }
+    // Membaca user role secara reaktif dari DataStore
+    val userRole: StateFlow<String> = userPreferences.userRole
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Operator Gudang")
+
+    private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    init {
+        loadDashboardData()
+    }
+
+    private fun loadDashboardData() {
+        viewModelScope.launch {
+            repository.getAllItems()
+                .catch { e ->
+                    _uiState.value = HomeUiState.Error(e.message ?: "Terjadi kesalahan sistem")
+                }
+                .collect { items ->
+                    if (items.isEmpty()) {
+                        _uiState.value = HomeUiState.Empty
+                    } else {
+                        val total = items.size
+                        val critical = items.count { it.priority == Priority.CRITICAL }
+                        val pending = items.count { it.status == SupplyStatus.PENDING }
+                        _uiState.value = HomeUiState.Success(
+                            totalItems = total,
+                            criticalItems = critical,
+                            pendingItems = pending,
+                            recentItems = items
+                        )
+                    }
+                }
         }
-        .catch { emit(HomeUiState.Error(it.message ?: "Terjadi kesalahan sistem")) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = HomeUiState.Loading
-        )
+    }
 }
 
-// Sealed interface untuk mengelola berbagai state pada layar Dashboard
 sealed interface HomeUiState {
-    data object Loading : HomeUiState
-    data object Empty : HomeUiState
+    object Loading : HomeUiState
+    object Empty : HomeUiState
+    data class Error(val message: String) : HomeUiState
     data class Success(
-        val recentItems: List<SupplyItem>,
         val totalItems: Int,
         val criticalItems: Int,
-        val pendingItems: Int
+        val pendingItems: Int,
+        val recentItems: List<com.example.raillog.domain.model.SupplyItem>
     ) : HomeUiState
-    data class Error(val message: String) : HomeUiState
 }

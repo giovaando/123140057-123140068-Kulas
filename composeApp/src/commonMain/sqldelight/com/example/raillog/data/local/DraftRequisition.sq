@@ -1,0 +1,20 @@
+CREATE TABLE DraftRequisition (
+    draftId TEXT NOT NULL PRIMARY KEY,
+    projectTitle TEXT NOT NULL,
+    currentStep INTEGER NOT NULL,
+    lastUpdated INTEGER NOT NULL,
+    formStateJson TEXT NOT NULL
+);
+
+insertOrReplaceDraft:
+INSERT OR REPLACE INTO DraftRequisition(draftId, projectTitle, currentStep, lastUpdated, formStateJson)
+VALUES (?, ?, ?, ?, ?);
+
+getAllDrafts:
+SELECT * FROM DraftRequisition ORDER BY lastUpdated DESC;
+
+getDraftById:
+SELECT * FROM DraftRequisition WHERE draftId = ?;
+
+deleteDraftById:
+DELETE FROM DraftRequisition WHERE draftId = ?;

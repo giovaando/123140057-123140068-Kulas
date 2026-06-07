@@ -28,7 +28,6 @@ import com.example.raillog.domain.model.SupplyItem
 import com.example.raillog.domain.model.SupplyStatus
 import org.koin.compose.viewmodel.koinViewModel
 
-// Warna kustom berdasarkan desain
 private val SuccessEmerald = Color(0xFF10B981)
 private val SurfaceSlate = Color(0xFFF7F9FB)
 private val BorderMuted = Color(0xFFE2E8F0)
@@ -43,29 +42,49 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Membaca peran aktif secara real-time
+    val userRole by viewModel.userRole.collectAsStateWithLifecycle()
+
     Scaffold(
         containerColor = SurfaceSlate,
         topBar = {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Placeholder Avatar
                         Icon(
                             imageVector = Icons.Default.AccountCircle,
                             contentDescription = "Profile",
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "RailLog Nusantara",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Column {
+                            Text(
+                                text = "Giovan Lado",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = userRole, // Dinamis menampilkan role dari login
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Notifications */ }) {
+                    // ATURAN 1: Hanya Inspektor Teknis yang memiliki akses cepat tombol AI di Dashboard
+                    if (userRole == "Inspektor Teknis") {
+                        IconButton(onClick = onNavigateToAI) {
+                            Icon(
+                                imageVector = Icons.Default.Assistant,
+                                contentDescription = "Asisten AI",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    IconButton(onClick = { /* Notifikasi */ }) {
                         Icon(Icons.Default.NotificationsNone, contentDescription = "Notifikasi", tint = MaterialTheme.colorScheme.primary)
                     }
                 },
@@ -73,13 +92,16 @@ fun HomeScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onNavigateToAddNote,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Tambah Komponen")
+            // ATURAN 2: Hanya Operator Gudang yang diizinkan menambah data fisik suku cadang baru
+            if (userRole == "Operator Gudang") {
+                FloatingActionButton(
+                    onClick = onNavigateToAddNote,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Tambah Komponen")
+                }
             }
         }
     ) { paddingValues ->
@@ -94,7 +116,7 @@ fun HomeScreen(
                 }
                 is HomeUiState.Empty -> {
                     Text(
-                        text = "Inventaris masih kosong. Tap tombol + untuk menambah data.",
+                        text = "Inventaris masih kosong.",
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
@@ -108,6 +130,7 @@ fun HomeScreen(
                 is HomeUiState.Success -> {
                     DashboardContent(
                         state = state,
+                        userRole = userRole,
                         onItemClick = onNavigateToDetail
                     )
                 }
@@ -119,6 +142,7 @@ fun HomeScreen(
 @Composable
 private fun DashboardContent(
     state: HomeUiState.Success,
+    userRole: String,
     onItemClick: (Long) -> Unit
 ) {
     LazyColumn(
@@ -128,17 +152,16 @@ private fun DashboardContent(
         item {
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Overview",
+                text = "Ringkasan Logistik",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Overview Cards (Stacked Vertically)
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OverviewCard(
-                    title = "Total Part",
+                    title = "Total Suku Cadang",
                     count = state.totalItems,
                     icon = Icons.Default.Inventory2,
                     iconBgColor = MaterialTheme.colorScheme.primaryContainer,
@@ -146,7 +169,7 @@ private fun DashboardContent(
                 )
 
                 OverviewCard(
-                    title = "Kritis",
+                    title = "Status Kritis (Urgensi Tinggi)",
                     count = state.criticalItems,
                     icon = Icons.Default.WarningAmber,
                     iconBgColor = MaterialTheme.colorScheme.errorContainer,
@@ -156,7 +179,7 @@ private fun DashboardContent(
                 )
 
                 OverviewCard(
-                    title = "Pending",
+                    title = "Menunggu Verifikasi (Pending)",
                     count = state.pendingItems,
                     icon = Icons.Default.PendingActions,
                     iconBgColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -168,7 +191,7 @@ private fun DashboardContent(
         item {
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Recent Items",
+                text = "Daftar Komponen Subsistem",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -180,7 +203,7 @@ private fun DashboardContent(
         }
 
         item {
-            Spacer(modifier = Modifier.height(80.dp)) // Ruang untuk Floating Action Button
+            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
@@ -212,7 +235,6 @@ private fun OverviewCard(
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-
                 Box(
                     modifier = Modifier
                         .size(32.dp)
@@ -225,7 +247,7 @@ private fun OverviewCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = count.toString(), // Untuk produksi nyata bisa gunakan NumberFormat
+                text = count.toString(),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = textColor
@@ -255,7 +277,6 @@ private fun SupplyItemCard(item: SupplyItem, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Kotak abu-abu untuk ID Part dengan font Monospace
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(4.dp))
@@ -281,11 +302,9 @@ private fun SupplyItemCard(item: SupplyItem, onClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Pill Status Badge
                 StatusBadge(isCritical = isCritical, status = item.status)
-
                 Text(
-                    text = "Updated recently", // Di aplikasi nyata gunakan format time-ago
+                    text = "Aktif",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )

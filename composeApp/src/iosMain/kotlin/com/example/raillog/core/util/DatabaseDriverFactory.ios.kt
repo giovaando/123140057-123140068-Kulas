@@ -14,7 +14,7 @@ actual class DatabaseDriverFactory {
     actual fun createDriver(): SqlDriver {
         return NativeSqliteDriver(
             schema = RailLogDatabase.Schema,
-            name = "raillog.db"
+            name = "raillog_v2.db"
         )
     }
 }

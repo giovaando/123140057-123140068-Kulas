@@ -35,4 +35,12 @@ class AIRepositoryImpl(
             systemPrompt = SystemPrompts.ANOMALY_DETECTOR
         )
     }
+
+    // Tambah ini
+    override suspend fun chat(prompt: String, systemPrompt: String): Result<String> {
+        return geminiService.generateContent(
+            prompt = prompt,
+            systemPrompt = systemPrompt
+        )
+    }
 }

@@ -9,12 +9,20 @@ import com.example.raillog.data.local.datastore.create
 import com.example.raillog.data.remote.api.GeminiService
 import com.example.raillog.data.repository.AIRepositoryImpl
 import com.example.raillog.data.repository.SupplyRepositoryImpl
+import com.example.raillog.data.repository.TechnicalDocumentRepositoryImpl
 import com.example.raillog.domain.repository.AIRepository
 import com.example.raillog.domain.repository.SupplyRepository
+import com.example.raillog.domain.repository.TechnicalDocumentRepository
+import com.example.raillog.domain.usecase.GetCriticalItemsUseCase
 import com.example.raillog.presentation.screens.addsupply.AddSupplyViewModel
+import com.example.raillog.presentation.screens.admin_main.AdminMainViewModel
+import com.example.raillog.presentation.screens.admin_main.VerificationDetailViewModel
 import com.example.raillog.presentation.screens.ai.AIAssistantViewModel
 import com.example.raillog.presentation.screens.detail.SupplyDetailViewModel
 import com.example.raillog.presentation.screens.home.HomeViewModel
+import com.example.raillog.presentation.screens.login.LoginViewModel
+import com.example.raillog.presentation.screens.requisition.RequisitionViewModel
+import com.example.raillog.presentation.screens.staff_main.StaffMainViewModel
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
@@ -51,12 +59,16 @@ val preferencesModule = module {
 val repositoryModule = module {
     singleOf(::AIRepositoryImpl) bind AIRepository::class
     singleOf(::SupplyRepositoryImpl) bind SupplyRepository::class
+    singleOf(::TechnicalDocumentRepositoryImpl) bind TechnicalDocumentRepository::class
 }
 
 // ==================== USE CASE MODULE ====================
 
 val useCaseModule = module {
-    // Use cases RailLog ditambahkan di Sprint 3
+    // Menggunakan single { } dengan tipe eksplisit untuk menghindari
+    // error "None of the following candidates is applicable" dari singleOf
+    // yang terjadi ketika GetCriticalItemsUseCase.kt belum ter-compile
+    single<GetCriticalItemsUseCase> { GetCriticalItemsUseCase(get()) }
 }
 
 // ==================== VIEWMODEL MODULE ====================
@@ -66,6 +78,11 @@ val viewModelModule = module {
     viewModelOf(::AddSupplyViewModel)
     viewModelOf(::SupplyDetailViewModel)
     viewModelOf(::AIAssistantViewModel)
+    viewModelOf(::LoginViewModel)
+    viewModelOf(::RequisitionViewModel)
+    viewModelOf(::StaffMainViewModel)
+    viewModelOf(::AdminMainViewModel)
+    viewModelOf(::VerificationDetailViewModel)
 }
 
 // ==================== SHARED MODULES ====================

@@ -158,7 +158,7 @@ fun AddSupplyScreen(
                             onClick = {
                                 viewModel.onEvent(AddSupplyEvent.CategoryChanged(category))
                             },
-                            label = { Text(category.displayName) },
+                            label = { Text(category.name) },
                             leadingIcon = if (isSelected) {
                                 {
                                     Icon(
@@ -229,7 +229,7 @@ fun AddSupplyScreen(
                             selected = isSelected,
                             onClick = { viewModel.onEvent(AddSupplyEvent.PriorityChanged(priority)) },
                             label = {
-                                Text(priority.displayName, modifier = Modifier.fillMaxWidth())
+                                Text(priority.name, modifier = Modifier.fillMaxWidth())
                             },
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f),

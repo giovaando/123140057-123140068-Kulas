@@ -1,88 +1,152 @@
 package com.example.raillog.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import com.example.raillog.presentation.screens.addsupply.AddSupplyScreen
-import com.example.raillog.presentation.screens.ai.AIAssistantScreen
-import com.example.raillog.presentation.screens.detail.SupplyDetailScreen
+import com.example.raillog.data.local.datastore.UserPreferences
+import com.example.raillog.presentation.screens.welcome.WelcomeScreen
+import com.example.raillog.presentation.screens.login.LoginScreen
+import com.example.raillog.presentation.screens.login.RegisterScreen
+import com.example.raillog.presentation.screens.staff_main.StaffMainScreen
+import com.example.raillog.presentation.screens.requisition.RequisitionScreen
+import com.example.raillog.presentation.screens.requisition.RequisitionViewModel
+import com.example.raillog.presentation.screens.admin_main.AdminMainScreen
+import com.example.raillog.presentation.screens.admin_main.VerificationDetailScreen
 import com.example.raillog.presentation.screens.home.HomeScreen
+import com.example.raillog.presentation.screens.addsupply.AddSupplyScreen
+import com.example.raillog.presentation.screens.detail.SupplyDetailScreen
+import com.example.raillog.presentation.screens.ai.AIAssistantScreen
+import kotlinx.coroutines.launch
+import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun AppNavHost(
-    navController: NavHostController = rememberNavController(),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    navController: NavHostController = rememberNavController()
 ) {
-    val navigationActions = createNavigationActions(navController)
+    val coroutineScope = rememberCoroutineScope()
+    val userPreferences: UserPreferences = koinInject()
 
     NavHost(
         navController = navController,
-        startDestination = Route.Home,
+        startDestination = Route.Welcome,
         modifier = modifier
     ) {
-        composable<Route.Home> {
-            HomeScreen(
-                onNavigateToAddNote = { navigationActions.navigateToAddSupply() },
-                onNavigateToDetail = { itemId -> navigationActions.navigateToSupplyDetail(itemId) },
-                onNavigateToAI = { navigationActions.navigateToAIAssistant() }
+        composable<Route.Welcome> {
+            WelcomeScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Route.Login) {
+                        popUpTo<Route.Welcome> { inclusive = true }
+                    }
+                },
+                onAutoLogin = { role ->
+                    val destination = if (role == "admin") Route.AdminMain else Route.StaffMain
+                    navController.navigate(destination) {
+                        popUpTo<Route.Welcome> { inclusive = true }
+                    }
+                }
             )
         }
 
-        composable<Route.AddSupply> { backStackEntry ->
-            val route: Route.AddSupply = backStackEntry.toRoute()
-            AddSupplyScreen(
-                itemId = route.itemId,
-                onNavigateBack = { navigationActions.navigateBack() }
+        composable<Route.Login> {
+            LoginScreen(
+                onLoginSuccess = { role ->
+                    val destination = if (role == "admin") Route.AdminMain else Route.StaffMain
+                    navController.navigate(destination) {
+                        popUpTo<Route.Login> { inclusive = true }
+                    }
+                },
+                onNavigateToRegister = {
+                    navController.navigate(Route.Register)
+                }
             )
         }
 
-        composable<Route.SupplyDetail> { backStackEntry ->
-            val route: Route.SupplyDetail = backStackEntry.toRoute()
-            SupplyDetailScreen(
-                itemId = route.itemId,
-                onNavigateBack = { navigationActions.navigateBack() },
-                onNavigateToEdit = { navigationActions.navigateToAddSupply(route.itemId) },
+        composable<Route.Register> {
+            RegisterScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
-        composable<Route.AIAssistant> { backStackEntry ->
-            val route: Route.AIAssistant = backStackEntry.toRoute()
-            AIAssistantScreen(
-                noteId = route.itemId,
-                initialText = route.initialText,
-                onNavigateBack = { navigationActions.navigateBack() },
-                onApplyResult = null
+        composable<Route.StaffMain> {
+            StaffMainScreen(
+                onNavigateToNewRequisition = {
+                    navController.navigate(Route.RequisitionWizard(draftId = null))
+                },
+                onNavigateToResumeDraft = { draftId ->
+                    navController.navigate(Route.RequisitionWizard(draftId = draftId))
+                },
+                onLogout = {
+                    coroutineScope.launch {
+                        try {
+                            userPreferences.clearUserSession()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    navController.navigate(Route.Login) {
+                        popUpTo<Route.StaffMain> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
-    }
-}
 
-private fun createNavigationActions(navController: NavHostController): NavigationActions {
-    return object : NavigationActions {
-        override fun navigateToHome() {
-            navController.navigate(Route.Home) {
-                popUpTo(Route.Home) { inclusive = true }
-            }
+        composable<Route.RequisitionWizard> { backStackEntry ->
+            val route = backStackEntry.toRoute<Route.RequisitionWizard>()
+            val viewModel: RequisitionViewModel = koinViewModel()
+            RequisitionScreen(
+                viewModel = viewModel,
+                draftId = route.draftId,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToHome = {
+                    navController.navigate(Route.StaffMain) {
+                        popUpTo<Route.StaffMain> { inclusive = true }
+                    }
+                }
+            )
         }
 
-        override fun navigateToAddSupply(itemId: Long?) {
-            navController.navigate(Route.AddSupply(itemId))
+        composable<Route.AdminMain> {
+            AdminMainScreen(
+                onNavigateToVerificationDetail = { reqId ->
+                    navController.navigate(Route.VerificationDetail(reqId))
+                },
+                onLogout = {
+                    coroutineScope.launch {
+                        try {
+                            userPreferences.clearUserSession()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    navController.navigate(Route.Login) {
+                        popUpTo<Route.AdminMain> { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
 
-        override fun navigateToSupplyDetail(itemId: Long) {
-            navController.navigate(Route.SupplyDetail(itemId))
+        composable<Route.VerificationDetail> { backStackEntry ->
+            val route = backStackEntry.toRoute<Route.VerificationDetail>()
+            VerificationDetailScreen(
+                requisitionId = route.requisitionId,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
-        override fun navigateToAIAssistant(itemId: Long?, initialText: String?) {
-            navController.navigate(Route.AIAssistant(itemId, initialText))
+        composable<Route.Home> { HomeScreen({}, {}, {}) }
+        composable<Route.AddSupply> {
+            AddSupplyScreen(onNavigateBack = { navController.popBackStack() })
         }
-
-        override fun navigateBack() {
-            navController.popBackStack()
-        }
+        composable<Route.SupplyDetail> { SupplyDetailScreen(0L, {}, {}) }
+        composable<Route.AIAssistant> { AIAssistantScreen(null, null, {}) }
     }
 }

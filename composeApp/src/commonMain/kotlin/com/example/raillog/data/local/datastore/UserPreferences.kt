@@ -8,116 +8,53 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/**
- * User Preferences menggunakan DataStore
- * 
- * DataStore adalah pengganti SharedPreferences yang lebih modern:
- * - Asynchronous dengan Coroutines dan Flow
- * - Type-safe dengan Preferences Keys
- * - Tidak blocking main thread
- * 
- * @param dataStore Instance DataStore dari platform
- */
 class UserPreferences(
     private val dataStore: DataStore<Preferences>
 ) {
-    // ==================== PREFERENCE KEYS ====================
-    
     private object Keys {
         val DARK_MODE = booleanPreferencesKey("dark_mode")
         val SORT_BY = stringPreferencesKey("sort_by")
         val DEFAULT_CATEGORY = stringPreferencesKey("default_category")
         val SHOW_PREVIEW = booleanPreferencesKey("show_preview")
         val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+
+        // Akun & Sesi
+        val USER_ROLE = stringPreferencesKey("user_role")
+        val STAFF_USERNAME = stringPreferencesKey("staff_username")
+        val STAFF_PASSWORD = stringPreferencesKey("staff_password")
+        val STAFF_NAME = stringPreferencesKey("staff_name")
+        val STAFF_ID = stringPreferencesKey("staff_id") // NIP/Employee ID
+        val STAFF_PHONE = stringPreferencesKey("staff_phone") // Nomor WA
     }
-    
-    // ==================== DARK MODE ====================
-    
-    /**
-     * Observe dark mode setting
-     */
-    val isDarkMode: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.DARK_MODE] ?: false
+
+    val isDarkMode: Flow<Boolean> = dataStore.data.map { prefs -> prefs[Keys.DARK_MODE] ?: false }
+    suspend fun setDarkMode(enabled: Boolean) { dataStore.edit { prefs -> prefs[Keys.DARK_MODE] = enabled } }
+
+    // ==================== USER ROLE & SESSION ====================
+    val userRole: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.USER_ROLE] ?: "" }
+
+    suspend fun setUserRole(role: String) {
+        dataStore.edit { prefs -> prefs[Keys.USER_ROLE] = role }
     }
-    
-    /**
-     * Set dark mode
-     */
-    suspend fun setDarkMode(enabled: Boolean) {
+
+    suspend fun clearUserSession() {
+        dataStore.edit { prefs -> prefs[Keys.USER_ROLE] = "" }
+    }
+
+    // ==================== REGISTER STAFF DATA ====================
+    val staffUsername: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_USERNAME] ?: "" }
+    val staffPassword: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_PASSWORD] ?: "" }
+    val staffName: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_NAME] ?: "" }
+    val staffId: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_ID] ?: "" }
+    val staffPhone: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_PHONE] ?: "" }
+
+    suspend fun registerStaff(name: String, user: String, pass: String, employeeId: String, phone: String) {
         dataStore.edit { prefs ->
-            prefs[Keys.DARK_MODE] = enabled
-        }
-    }
-    
-    // ==================== SORT BY ====================
-    
-    /**
-     * Observe sort preference
-     */
-    val sortBy: Flow<String> = dataStore.data.map { prefs ->
-        prefs[Keys.SORT_BY] ?: "UPDATED_DESC"
-    }
-    
-    /**
-     * Set sort preference
-     */
-    suspend fun setSortBy(sortBy: String) {
-        dataStore.edit { prefs ->
-            prefs[Keys.SORT_BY] = sortBy
-        }
-    }
-    
-    // ==================== DEFAULT CATEGORY ====================
-    
-    /**
-     * Observe default category
-     */
-    val defaultCategory: Flow<String> = dataStore.data.map { prefs ->
-        prefs[Keys.DEFAULT_CATEGORY] ?: "GENERAL"
-    }
-    
-    /**
-     * Set default category
-     */
-    suspend fun setDefaultCategory(category: String) {
-        dataStore.edit { prefs ->
-            prefs[Keys.DEFAULT_CATEGORY] = category
-        }
-    }
-    
-    // ==================== SHOW PREVIEW ====================
-    
-    /**
-     * Observe show preview setting
-     */
-    val showPreview: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.SHOW_PREVIEW] ?: true
-    }
-    
-    /**
-     * Set show preview
-     */
-    suspend fun setShowPreview(show: Boolean) {
-        dataStore.edit { prefs ->
-            prefs[Keys.SHOW_PREVIEW] = show
-        }
-    }
-    
-    // ==================== ONBOARDING ====================
-    
-    /**
-     * Check if onboarding completed
-     */
-    val isOnboardingCompleted: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[Keys.ONBOARDING_COMPLETED] ?: false
-    }
-    
-    /**
-     * Set onboarding completed
-     */
-    suspend fun setOnboardingCompleted() {
-        dataStore.edit { prefs ->
-            prefs[Keys.ONBOARDING_COMPLETED] = true
+            prefs[Keys.STAFF_NAME] = name
+            prefs[Keys.STAFF_USERNAME] = user
+            prefs[Keys.STAFF_PASSWORD] = pass
+            prefs[Keys.STAFF_ID] = employeeId
+            prefs[Keys.STAFF_PHONE] = phone
         }
     }
 }

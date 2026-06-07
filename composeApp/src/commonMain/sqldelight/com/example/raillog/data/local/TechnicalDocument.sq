@@ -20,6 +20,10 @@ ORDER BY created_at DESC;
 getDocumentById:
 SELECT * FROM TechnicalDocumentEntity WHERE id = ?;
 
+getDocumentByTitle:
+SELECT * FROM TechnicalDocumentEntity
+WHERE title = ?;
+
 getUnverifiedDocuments:
 SELECT * FROM TechnicalDocumentEntity
 WHERE verification_status = 'UNVERIFIED'

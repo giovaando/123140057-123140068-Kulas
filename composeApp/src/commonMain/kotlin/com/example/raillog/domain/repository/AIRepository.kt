@@ -5,6 +5,9 @@ interface AIRepository {
     suspend fun summarizeInspection(report: String): Result<String>
     suspend fun suggestProcurement(supplyData: String): Result<String>
     suspend fun detectAnomalies(documentContent: String): Result<String>
+
+    // Tambah ini
+    suspend fun chat(prompt: String, systemPrompt: String): Result<String>
 }
 
 enum class WritingStyle(val displayName: String, val prompt: String) {
