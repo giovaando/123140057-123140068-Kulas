@@ -23,22 +23,12 @@ class UserPreferences(
         val STAFF_USERNAME = stringPreferencesKey("staff_username")
         val STAFF_PASSWORD = stringPreferencesKey("staff_password")
         val STAFF_NAME = stringPreferencesKey("staff_name")
+        val STAFF_ID = stringPreferencesKey("staff_id") // NIP/Employee ID
+        val STAFF_PHONE = stringPreferencesKey("staff_phone") // Nomor WA
     }
 
     val isDarkMode: Flow<Boolean> = dataStore.data.map { prefs -> prefs[Keys.DARK_MODE] ?: false }
     suspend fun setDarkMode(enabled: Boolean) { dataStore.edit { prefs -> prefs[Keys.DARK_MODE] = enabled } }
-
-    val sortBy: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.SORT_BY] ?: "UPDATED_DESC" }
-    suspend fun setSortBy(sortBy: String) { dataStore.edit { prefs -> prefs[Keys.SORT_BY] = sortBy } }
-
-    val defaultCategory: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.DEFAULT_CATEGORY] ?: "GENERAL" }
-    suspend fun setDefaultCategory(category: String) { dataStore.edit { prefs -> prefs[Keys.DEFAULT_CATEGORY] = category } }
-
-    val showPreview: Flow<Boolean> = dataStore.data.map { prefs -> prefs[Keys.SHOW_PREVIEW] ?: true }
-    suspend fun setShowPreview(show: Boolean) { dataStore.edit { prefs -> prefs[Keys.SHOW_PREVIEW] = show } }
-
-    val isOnboardingCompleted: Flow<Boolean> = dataStore.data.map { prefs -> prefs[Keys.ONBOARDING_COMPLETED] ?: false }
-    suspend fun setOnboardingCompleted() { dataStore.edit { prefs -> prefs[Keys.ONBOARDING_COMPLETED] = true } }
 
     // ==================== USER ROLE & SESSION ====================
     val userRole: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.USER_ROLE] ?: "" }
@@ -51,16 +41,20 @@ class UserPreferences(
         dataStore.edit { prefs -> prefs[Keys.USER_ROLE] = "" }
     }
 
-    // ==================== REGISTER STAFF ====================
+    // ==================== REGISTER STAFF DATA ====================
     val staffUsername: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_USERNAME] ?: "" }
     val staffPassword: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_PASSWORD] ?: "" }
     val staffName: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_NAME] ?: "" }
+    val staffId: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_ID] ?: "" }
+    val staffPhone: Flow<String> = dataStore.data.map { prefs -> prefs[Keys.STAFF_PHONE] ?: "" }
 
-    suspend fun registerStaff(name: String, user: String, pass: String) {
+    suspend fun registerStaff(name: String, user: String, pass: String, employeeId: String, phone: String) {
         dataStore.edit { prefs ->
             prefs[Keys.STAFF_NAME] = name
             prefs[Keys.STAFF_USERNAME] = user
             prefs[Keys.STAFF_PASSWORD] = pass
+            prefs[Keys.STAFF_ID] = employeeId
+            prefs[Keys.STAFF_PHONE] = phone
         }
     }
 }
