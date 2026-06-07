@@ -8,16 +8,19 @@ import com.example.raillog.domain.model.SupplyItem
 import com.example.raillog.domain.model.PartCategory
 import com.example.raillog.domain.model.Priority
 import com.example.raillog.domain.model.SupplyStatus
+import com.example.raillog.domain.repository.NotificationService
 import com.example.raillog.domain.repository.SupplyRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Instant // IMPORT INSTANT
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 class SupplyRepositoryImpl(
-    db: RailLogDatabase
+    db: RailLogDatabase,
+    private val notificationService: NotificationService
 ) : SupplyRepository {
 
     private val queries = db.supplyItemQueries
@@ -35,12 +38,12 @@ class SupplyRepositoryImpl(
                         name = entity.name,
                         category = PartCategory.fromString(entity.category),
                         quantity = entity.quantity.toInt(),
-                        unit = entity.unit ?: "",
-                        supplier = entity.supplier ?: "",
+                        unit = entity.unit,
+                        supplier = entity.supplier,
                         status = SupplyStatus.fromString(entity.status),
                         priority = Priority.fromString(entity.priority),
                         documentRef = entity.document_ref,
-                        notes = entity.notes ?: "",
+                        notes = entity.notes,
                         createdAt = Instant.fromEpochMilliseconds(entity.created_at),
                         updatedAt = Instant.fromEpochMilliseconds(entity.updated_at)
                     )
@@ -49,11 +52,10 @@ class SupplyRepositoryImpl(
     }
 
     override fun getItemById(id: Long): Flow<SupplyItem?> {
-        return queries.getAllItems()
+        return queries.getItemById(id)
             .asFlow()
-            .mapToList(Dispatchers.IO)
-            .map { entities ->
-                val entity = entities.find { it.id == id }
+            .map { it.executeAsOneOrNull() }
+            .map { entity ->
                 entity?.let {
                     SupplyItem(
                         id = it.id,
@@ -61,12 +63,12 @@ class SupplyRepositoryImpl(
                         name = it.name,
                         category = PartCategory.fromString(it.category),
                         quantity = it.quantity.toInt(),
-                        unit = it.unit ?: "",
-                        supplier = it.supplier ?: "",
+                        unit = it.unit,
+                        supplier = it.supplier,
                         status = SupplyStatus.fromString(it.status),
                         priority = Priority.fromString(it.priority),
                         documentRef = it.document_ref,
-                        notes = it.notes ?: "",
+                        notes = it.notes,
                         createdAt = Instant.fromEpochMilliseconds(it.created_at),
                         updatedAt = Instant.fromEpochMilliseconds(it.updated_at)
                     )
@@ -76,39 +78,50 @@ class SupplyRepositoryImpl(
 
     override suspend fun insertItem(item: SupplyItem) {
         withContext(Dispatchers.IO) {
+            val now = Clock.System.now().toEpochMilliseconds()
             queries.insertItem(
-                name = item.name,
                 part_code = item.partCode,
+                name = item.name,
                 category = item.category.name,
-                priority = item.priority.name,
-                status = item.status.name,
                 quantity = item.quantity.toLong(),
-                supplier = item.supplier,
                 unit = item.unit,
+                supplier = item.supplier,
+                status = item.status.name,
+                priority = item.priority.name,
+                document_ref = item.documentRef,
                 notes = item.notes,
-                document_ref = item.documentRef ?: "",
-                created_at = item.createdAt.toEpochMilliseconds(),
-                updated_at = item.updatedAt.toEpochMilliseconds()
+                created_at = now,
+                updated_at = now
             )
+            
+            // TRIGGER NOTIFICATION: Jika priority CRITICAL atau HIGH (PRD 8.4)
+            if (item.priority == Priority.CRITICAL || item.priority == Priority.HIGH) {
+                notificationService.showCriticalAlert(item.name, item.quantity)
+            }
         }
     }
 
     override suspend fun updateItem(item: SupplyItem) {
         withContext(Dispatchers.IO) {
             queries.updateItem(
-                name = item.name,
                 part_code = item.partCode,
+                name = item.name,
                 category = item.category.name,
-                priority = item.priority.name,
-                status = item.status.name,
                 quantity = item.quantity.toLong(),
-                supplier = item.supplier,
                 unit = item.unit,
+                supplier = item.supplier,
+                status = item.status.name,
+                priority = item.priority.name,
+                document_ref = item.documentRef,
                 notes = item.notes,
-                document_ref = item.documentRef ?: "",
-                updated_at = item.updatedAt.toEpochMilliseconds(),
+                updated_at = Clock.System.now().toEpochMilliseconds(),
                 id = item.id
             )
+            
+            // Notifikasi jika update mengubah prioritas ke CRITICAL/HIGH
+            if (item.priority == Priority.CRITICAL || item.priority == Priority.HIGH) {
+                notificationService.showCriticalAlert(item.name, item.quantity)
+            }
         }
     }
 
@@ -120,39 +133,32 @@ class SupplyRepositoryImpl(
 
     override suspend fun updateStatus(id: Long, status: SupplyStatus) {
         withContext(Dispatchers.IO) {
-            val entities = queries.getAllItems().executeAsList()
-            val entity = entities.find { it.id == id }
-
-            if (entity != null) {
-                queries.updateItem(
-                    name = entity.name,
-                    part_code = entity.part_code,
-                    category = entity.category,
-                    priority = entity.priority,
-                    status = status.name,
-                    quantity = entity.quantity,
-                    supplier = entity.supplier,
-                    unit = entity.unit,
-                    notes = entity.notes ?: "",
-                    document_ref = entity.document_ref ?: "",
-                    updated_at = entity.updated_at,
-                    id = id
-                )
+            queries.updateStatus(
+                status = status.name,
+                updated_at = Clock.System.now().toEpochMilliseconds(),
+                id = id
+            )
+            
+            // Opsional: Notifikasi jika status menjadi VERIFIED (UX Improvement)
+            if (status == SupplyStatus.VERIFIED) {
+                // Bisa ditambahkan showInfoAlert jika perlu di masa depan
             }
         }
     }
 
-    // ==========================================
-    // FITUR DRAFT SQLDELIGHT
-    // ==========================================
+    // ==================== DRAFT REQUISITION ====================
     override suspend fun saveDraft(draftId: String, projectTitle: String, currentStep: Int, lastUpdated: Long, formStateJson: String) {
-        withContext(Dispatchers.IO) { draftQueries.insertOrReplaceDraft(draftId, projectTitle, currentStep.toLong(), lastUpdated, formStateJson) }
+        withContext(Dispatchers.IO) { 
+            draftQueries.insertOrReplaceDraft(draftId, projectTitle, currentStep.toLong(), lastUpdated, formStateJson) 
+        }
     }
+
     override fun getAllDrafts(): Flow<List<DraftItem>> {
         return draftQueries.getAllDrafts().asFlow().mapToList(Dispatchers.IO).map { entities ->
             entities.map { DraftItem(it.draftId, it.projectTitle, it.currentStep.toInt(), it.lastUpdated, it.formStateJson) }
         }
     }
+
     override suspend fun deleteDraft(draftId: String) {
         withContext(Dispatchers.IO) { draftQueries.deleteDraftById(draftId) }
     }
