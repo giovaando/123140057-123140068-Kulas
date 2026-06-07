@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.material.icons.automirrored.filled.FactCheck
 
 private val RailBlue = Color(0xFF193255)
 private val RailLightBlue = Color(0xFFF0F4FA)
@@ -199,7 +200,7 @@ private fun WelcomeState(onQuickAction: (String) -> Unit) {
         ),
 
         QuickAction(
-            icon = Icons.Default.FactCheck,
+            icon = Icons.AutoMirrored.Filled.FactCheck,
             title = "AI Verification",
             subtitle = "Panduan validasi hasil AI",
             prompt = "Bagaimana cara memverifikasi hasil ekstraksi AI dan confidence score sebelum approval?"

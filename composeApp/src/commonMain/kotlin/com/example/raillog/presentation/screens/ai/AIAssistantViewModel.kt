@@ -2,14 +2,14 @@ package com.example.raillog.presentation.screens.ai
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.raillog.data.remote.api.SystemPrompts
 import com.example.raillog.domain.repository.AIRepository
+import com.example.raillog.domain.repository.SupplyRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-// ==================== DATA MODELS ====================
 
 enum class MessageRole { USER, ASSISTANT }
 
@@ -23,19 +23,43 @@ data class AIAssistantUiState(
     val inputText: String = "",
     val messages: List<ChatMessage> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val inventoryContext: String = ""
 ) {
     val canSend: Boolean get() = inputText.isNotBlank() && !isLoading
 }
 
-// ==================== VIEWMODEL ====================
-
 class AIAssistantViewModel(
-    private val aiRepository: AIRepository
+    private val aiRepository: AIRepository,
+    private val supplyRepository: SupplyRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AIAssistantUiState())
     val uiState: StateFlow<AIAssistantUiState> = _uiState.asStateFlow()
+
+    init {
+        observeInventory()
+    }
+
+    private fun observeInventory() {
+        viewModelScope.launch {
+            supplyRepository.getAllItems().collect { items ->
+                if (items.isNotEmpty()) {
+                    val contextLines = items.take(20).joinToString("\n") { item ->
+                        "- [${item.partCode}] ${item.name} | Qty: ${item.quantity} ${item.unit} | Status: ${item.status.name} | Priority: ${item.priority.name}"
+                    }
+                    val fullContext = buildString {
+                        appendLine("=== KONTEKS INVENTARIS REAL-TIME (${items.size} item total) ===")
+                        appendLine(contextLines)
+                        if (items.size > 20) appendLine("... dan ${items.size - 20} item lainnya.")
+                    }
+                    _uiState.update { it.copy(inventoryContext = fullContext) }
+                } else {
+                    _uiState.update { it.copy(inventoryContext = "Inventaris saat ini kosong.") }
+                }
+            }
+        }
+    }
 
     fun updateInput(text: String) {
         _uiState.update { it.copy(inputText = text, error = null) }
@@ -52,7 +76,6 @@ class AIAssistantViewModel(
     }
 
     private fun sendMessageInternal(text: String) {
-        // Tambah pesan user ke list
         val userMessage = ChatMessage(role = MessageRole.USER, content = text)
         _uiState.update { state ->
             state.copy(
@@ -64,51 +87,29 @@ class AIAssistantViewModel(
         }
 
         viewModelScope.launch {
-            // Pilih handler berdasarkan keyword
-            val result = when {
-                containsKeywords(text, "verifikasi", "dokumen", "verify", "document") ->
-                    aiRepository.verifyDocument(text)
-
-                containsKeywords(text, "ringkas", "rangkum", "ringkasan", "summarize", "laporan") ->
-                    aiRepository.summarizeInspection(text)
-
-                containsKeywords(text, "pengadaan", "saran", "procurement", "rekomendasi", "prioritas") ->
-                    aiRepository.suggestProcurement(text)
-
-                containsKeywords(text, "anomali", "deteksi", "anomaly", "detect", "mencurigakan") ->
-                    aiRepository.detectAnomalies(text)
-
-                else ->
-                    // General chat — gunakan suggestProcurement dengan prompt general
-                    aiRepository.suggestProcurement(
-                        "Jawab pertanyaan umum berikut terkait logistik kereta api:\n$text"
-                    )
+            val currentState = _uiState.value
+            val enrichedPrompt = if (currentState.inventoryContext.isNotBlank()) {
+                "${currentState.inventoryContext}\n\nPertanyaan dari pengguna:\n$text"
+            } else {
+                text
             }
+
+            val result = aiRepository.chat(enrichedPrompt, SystemPrompts.GENERAL_ASSISTANT)
 
             result.fold(
                 onSuccess = { responseText ->
-                    val aiMessage = ChatMessage(
-                        role = MessageRole.ASSISTANT,
-                        content = responseText
-                    )
+                    val aiMessage = ChatMessage(role = MessageRole.ASSISTANT, content = responseText)
                     _uiState.update { state ->
-                        state.copy(
-                            messages = state.messages + aiMessage,
-                            isLoading = false
-                        )
+                        state.copy(messages = state.messages + aiMessage, isLoading = false)
                     }
                 },
                 onFailure = { error ->
                     val errorMessage = ChatMessage(
                         role = MessageRole.ASSISTANT,
-                        content = "Maaf, terjadi kesalahan: ${error.message ?: "Unknown error"}. Pastikan API key sudah dikonfigurasi di local.properties."
+                        content = "Maaf, terjadi kesalahan: ${error.message ?: "Unknown error"}. Pastikan API key sudah dikonfigurasi."
                     )
                     _uiState.update { state ->
-                        state.copy(
-                            messages = state.messages + errorMessage,
-                            isLoading = false,
-                            error = error.message
-                        )
+                        state.copy(messages = state.messages + errorMessage, isLoading = false)
                     }
                 }
             )
@@ -116,29 +117,8 @@ class AIAssistantViewModel(
     }
 
     fun clearConversation() {
-        _uiState.update {
-            AIAssistantUiState()
+        _uiState.update { current ->
+            AIAssistantUiState(inventoryContext = current.inventoryContext)
         }
     }
-
-    private fun containsKeywords(text: String, vararg keywords: String): Boolean {
-        val lower = text.lowercase()
-        return keywords.any { lower.contains(it) }
-    }
-}
-
-// ==================== LEGACY ENUMS (backward compat) ====================
-
-enum class AIAction(val displayName: String, val description: String) {
-    SUMMARIZE("Ringkas", "Buat ringkasan dari teks"),
-    GENERATE_IDEAS("Ide", "Generate ide berdasarkan topik"),
-    IMPROVE_WRITING("Perbaiki", "Perbaiki tulisan"),
-    TRANSLATE("Terjemah", "Terjemahkan ke bahasa lain"),
-    SUGGEST_TITLE("Judul", "Sarankan judul"),
-    CHAT("Tanya", "Tanya AI tentang apapun")
-}
-
-sealed interface AIAssistantEvent {
-    data class CopyToClipboard(val text: String) : AIAssistantEvent
-    data class ApplyToNote(val text: String) : AIAssistantEvent
 }
