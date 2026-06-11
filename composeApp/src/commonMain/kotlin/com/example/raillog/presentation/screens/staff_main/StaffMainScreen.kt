@@ -28,6 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.raillog.domain.model.DraftItem
 import com.example.raillog.domain.model.SupplyItem
+import com.example.raillog.presentation.components.ActiveTaskCard
+import com.example.raillog.presentation.components.RailLogMetricCard
+import com.example.raillog.presentation.components.RailLogSearchField
+import com.example.raillog.presentation.components.RailLogSectionHeader
+import com.example.raillog.presentation.components.RailLogStatusChip
 import com.example.raillog.presentation.theme.RailLogColors
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -188,13 +193,31 @@ fun StaffHomeTab(userRole: String, allItems: List<SupplyItem>, onStart: () -> Un
         item {
             Spacer(modifier = Modifier.height(16.dp))
             // SAPAAN DINAMIS JAM SISTEM
-            Text(
-                "${getGreeting()},\n$userRole", 
-                fontSize = 24.sp, 
-                fontWeight = FontWeight.ExtraBold, 
-                color = RailLogColors.PrimaryNavy, 
-                lineHeight = 30.sp
-            )
+            Column {
+
+                Text(
+                    getGreeting(),
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    "Warehouse Operations Center",
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = RailLogColors.PrimaryNavy
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    userRole,
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
                 Box(modifier = Modifier.size(8.dp).background(if (pending > 0) RailLogColors.WarningAmber else RailLogColors.SuccessEmerald, CircleShape))
                 Spacer(modifier = Modifier.width(8.dp))
@@ -203,27 +226,99 @@ fun StaffHomeTab(userRole: String, allItems: List<SupplyItem>, onStart: () -> Un
         }
 
         item {
-            Card(onClick = onStart, modifier = Modifier.fillMaxWidth().height(100.dp), colors = CardDefaults.cardColors(containerColor = RailLogColors.PrimaryNavy), shape = RoundedCornerShape(12.dp)) {
-                Row(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Form Pengadaan Audit", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-                        Text("Mulai alur 5-langkah profesional", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
-                    }
-                    Icon(Icons.Default.PostAdd, null, tint = Color.White, modifier = Modifier.size(36.dp))
+            ActiveTaskCard(
+                pendingCount = pending,
+                onClick = onStart
+            )
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+
+                RailLogMetricCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Inventory",
+                    value = allItems.size.toString(),
+                    icon = Icons.Default.Inventory2,
+                    iconColor = RailLogColors.PrimaryNavy
+                )
+
+                RailLogMetricCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Critical",
+                    value = critical.toString(),
+                    icon = Icons.Default.Warning,
+                    iconColor = RailLogColors.ErrorRed
+                )
+
+                RailLogMetricCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Pending",
+                    value = pending.toString(),
+                    icon = Icons.Default.Schedule,
+                    iconColor = RailLogColors.WarningAmber
+                )
+            }
+        }
+
+        item {
+
+            RailLogSectionHeader(
+                title = "Quick Actions",
+                subtitle = "Frequently used operations"
+            )
+        }
+
+        item {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onStart
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        null
+                    )
+
+                    Spacer(
+                        Modifier.width(8.dp)
+                    )
+
+                    Text("New Request")
+                }
+
+                OutlinedButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onViewAll
+                ) {
+                    Icon(
+                        Icons.Default.History,
+                        null
+                    )
+
+                    Spacer(
+                        Modifier.width(8.dp)
+                    )
+
+                    Text("History")
                 }
             }
         }
 
         item {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricCard(Modifier.weight(1f), Icons.Default.Inventory2, "Total Stok", allItems.size.toString(), RailLogColors.PrimaryNavy)
-                MetricCard(Modifier.weight(1f), Icons.Default.ReportProblem, "Peringatan", critical.toString(), RailLogColors.ErrorRed, RailLogColors.ErrorBackground)
-            }
-        }
-
-        item {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Audit Terbaru", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = RailLogColors.PrimaryNavy)
+                RailLogSectionHeader(
+                    title = "Recent Activity",
+                    subtitle = "Aktivitas logistik terbaru"
+                )
                 TextButton(onClick = onViewAll) { Text("LIHAT SEMUA", color = RailLogColors.PrimaryNavy, fontWeight = FontWeight.ExtraBold) }
             }
         }
@@ -253,7 +348,13 @@ fun StaffRequestsTab(viewModel: StaffMainViewModel, allDrafts: List<DraftItem>, 
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text("Daftar Pengajuan", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = RailLogColors.PrimaryNavy, modifier = Modifier.padding(16.dp))
-        FunctionalSearchBar(query, { viewModel.updateSearchQuery(it) }, "Cari berdasarkan nama atau kode...")
+        RailLogSearchField(
+            value = query,
+            onValueChange = {
+                viewModel.updateSearchQuery(it)
+            },
+            placeholder = "Cari berdasarkan nama atau kode..."
+        )
 
         ScrollableTabRow(
             selectedTabIndex = subTab, containerColor = Color.Transparent, edgePadding = 16.dp,
@@ -290,20 +391,122 @@ fun StaffInventoryTab(viewModel: StaffMainViewModel) {
     val items by viewModel.filteredInventoryItems.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        FunctionalSearchBar(query, { viewModel.updateSearchQuery(it) }, "Cari di gudang...")
+        Text(
+            text = "Inventory Center",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = RailLogColors.PrimaryNavy,
+            modifier = Modifier.padding(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp
+            )
+        )
+
+        Text(
+            text = "Warehouse stock monitoring",
+            fontSize = 13.sp,
+            color = Color.Gray,
+            modifier = Modifier.padding(
+                start = 16.dp,
+                end = 16.dp,
+                bottom = 16.dp
+            )
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+
+            RailLogMetricCard(
+                modifier = Modifier.weight(1f),
+                title = "Items",
+                value = items.size.toString(),
+                icon = Icons.Default.Inventory2,
+                iconColor = RailLogColors.PrimaryNavy
+            )
+
+            RailLogMetricCard(
+                modifier = Modifier.weight(1f),
+                title = "Categories",
+                value = cats.size.toString(),
+                icon = Icons.Default.Category,
+                iconColor = RailLogColors.SuccessEmerald
+            )
+
+            RailLogMetricCard(
+                modifier = Modifier.weight(1f),
+                title = "Available",
+                value = items.count {
+                    it.quantity > 0
+                }.toString(),
+                icon = Icons.Default.CheckCircle,
+                iconColor = RailLogColors.SuccessEmerald
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        RailLogSectionHeader(
+            title = "Inventory Explorer",
+            subtitle = "Search and filter warehouse items"
+        )
+
+        RailLogSearchField(
+            value = query,
+            onValueChange = {
+                viewModel.updateSearchQuery(it)
+            },
+            placeholder = "Cari di gudang..."
+        )
+
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(cats) { cat ->
                 FilterChip(
-                    selected = selectedCat == cat, onClick = { viewModel.updateInventoryCategory(cat) },
-                    label = { Text(cat, fontWeight = FontWeight.ExtraBold) },
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = RailLogColors.PrimaryNavy, selectedLabelColor = Color.White)
+                    selected = selectedCat == cat,
+                    onClick = {
+                        viewModel.updateInventoryCategory(cat)
+                    },
+                    label = {
+                        Text(
+                            cat,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = RailLogColors.PrimaryNavy,
+                        selectedLabelColor = Color.White
+                    )
                 )
             }
         }
-        LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (items.isEmpty()) item { EmptyStateBox("Inventaris kosong.") }
-            else items(items) { InventoryItemCard(it) }
-            item { Spacer(modifier = Modifier.height(72.dp)) }
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 8.dp,
+                bottom = 100.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (items.isEmpty()) {
+                item {
+                    EmptyStateBox("No inventory data available")
+                }
+            } else {
+                items(items) {
+                    InventoryItemCard(it)
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
 }
@@ -317,7 +520,13 @@ fun StaffHistoryTab(viewModel: StaffMainViewModel) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         Text("Riwayat Audit", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = RailLogColors.PrimaryNavy, modifier = Modifier.padding(16.dp))
-        FunctionalSearchBar(query, { viewModel.updateHistorySearchQuery(it) }, "Cari ID Proyek...")
+        RailLogSearchField(
+            value = query,
+            onValueChange = {
+                viewModel.updateHistorySearchQuery(it)
+            },
+            placeholder = "Cari ID Proyek..."
+        )
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filters) { f ->
                 FilterChip(selected = filter.contains(f, true) || (f == "Semua" && filter == "All Requests"), onClick = { viewModel.updateHistoryFilter(if(f=="Semua") "All Requests" else f) }, label = { Text(f, fontWeight = FontWeight.Bold) })
@@ -332,124 +541,265 @@ fun StaffHistoryTab(viewModel: StaffMainViewModel) {
 }
 
 @Composable
-fun FunctionalSearchBar(value: String, onValueChange: (String) -> Unit, placeholder: String) {
-    OutlinedTextField(
-        value = value, onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-        placeholder = { Text(placeholder, color = Color.Black.copy(alpha = 0.6f)) },
-        leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.Black) },
-        trailingIcon = { if (value.isNotEmpty()) IconButton(onClick = { onValueChange("") }) { Icon(Icons.Default.Close, null, tint = Color.Black) } },
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.Black, unfocusedTextColor = Color.Black,
-            focusedContainerColor = Color.White, unfocusedContainerColor = Color.White,
-            unfocusedBorderColor = Color.Black, focusedBorderColor = RailLogColors.PrimaryNavy
-        ),
-        singleLine = true
-    )
-}
-
-@Composable
 fun EmptyStateBox(msg: String) {
-    Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(Icons.Default.Inbox, null, tint = Color.Black, modifier = Modifier.size(64.dp))
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 48.dp),
+        contentAlignment = Alignment.Center
+    ) {
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            Icon(
+                Icons.Default.Inbox,
+                contentDescription = null,
+                modifier = Modifier.size(56.dp),
+                tint = Color.LightGray
+            )
+
             Spacer(modifier = Modifier.height(16.dp))
-            Text(msg, color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+
+            Text(
+                msg,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
 
 @Composable
 fun HistoryCard(item: SupplyItem) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(2.dp, Color.Black)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(item.partCode, color = RailLogColors.PrimaryNavy, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
-                Box(modifier = Modifier.background(RailLogColors.AISurface, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
-                    Text(formatTimestamp(item.createdAt.toEpochMilliseconds()), fontSize = 11.sp, color = RailLogColors.PrimaryNavy, fontWeight = FontWeight.ExtraBold)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        border = BorderStroke(
+            1.dp,
+            Color(0xFFE5E7EB)
+        )
+    ) {
+
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Column {
+
+                    Text(
+                        item.partCode,
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        item.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = RailLogColors.PrimaryNavy
+                    )
                 }
+
+                RailLogStatusChip(
+                    status = item.status.name
+                )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(item.name, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+
             Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Inventory2, null, tint = Color.Black, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("${item.quantity} Unit", fontSize = 14.sp, color = Color.Black, fontWeight = FontWeight.ExtraBold)
-                }
-                StatusChip(item.status.name)
+
+            HorizontalDivider(
+                color = Color(0xFFF1F5F9)
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+
+                Text(
+                    "${item.quantity} ${item.unit}",
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Text(
+                    formatTimestamp(
+                        item.createdAt.toEpochMilliseconds()
+                    ),
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
             }
         }
     }
 }
 
 @Composable
-fun StatusChip(status: String) {
-    val bgColor = when (status) {
-        "VERIFIED" -> RailLogColors.SuccessBackground
-        "PENDING" -> RailLogColors.WarningBackground
-        "REJECTED" -> RailLogColors.ErrorBackground
-        else -> RailLogColors.SurfaceSlate
-    }
-    val textColor = when (status) {
-        "VERIFIED" -> RailLogColors.SuccessEmerald
-        "PENDING" -> RailLogColors.WarningAmber
-        "REJECTED" -> RailLogColors.ErrorRed
-        else -> Color.Black
-    }
-    Box(modifier = Modifier.background(bgColor, RoundedCornerShape(6.dp)).padding(horizontal = 10.dp, vertical = 4.dp)) {
-        Text(status, color = textColor, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
-    }
-}
+fun DraftCard(
+    draft: DraftItem,
+    onClick: () -> Unit
+) {
 
-@Composable
-fun DraftCard(draft: DraftItem, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable { onClick() }, colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(2.dp, RailLogColors.PrimaryNavy)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(draft.projectTitle.ifEmpty { "Audit Requisition" }, color = RailLogColors.PrimaryNavy, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
-                Box(modifier = Modifier.background(Color.Black, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                    Text("DRAF", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.ExtraBold)
-                }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        border = BorderStroke(
+            1.dp,
+            Color(0xFFE2E8F0)
+        )
+    ) {
+
+        Column(
+            modifier = Modifier.padding(18.dp)
+        ) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+
+                Text(
+                    draft.projectTitle.ifEmpty {
+                        "Railway Requisition"
+                    },
+                    fontWeight = FontWeight.Bold,
+                    color = RailLogColors.PrimaryNavy
+                )
+
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text("Draft")
+                    }
+                )
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                "Progress Form",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            LinearProgressIndicator(
+                progress = { draft.currentStep / 5f },
+                modifier = Modifier.fillMaxWidth(),
+                color = RailLogColors.PrimaryNavy
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
-            Text("Langkah ${draft.currentStep} dari 5", fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-            LinearProgressIndicator(progress = { draft.currentStep / 5f }, modifier = Modifier.fillMaxWidth().height(8.dp), color = RailLogColors.PrimaryNavy, trackColor = RailLogColors.BorderGray)
+
+            Text(
+                "Step ${draft.currentStep} of 5",
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
 
 @Composable
-fun InventoryItemCard(item: SupplyItem) {
-    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(2.dp, Color.Black)) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(item.name, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = Color.Black)
-                Text("KODE: ${item.partCode}", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Text(item.category.name, color = RailLogColors.PrimaryNavy, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
-            }
-            Box(modifier = Modifier.background(RailLogColors.SuccessBackground, RoundedCornerShape(4.dp)).border(1.dp, RailLogColors.SuccessEmerald, RoundedCornerShape(4.dp)).padding(horizontal = 10.dp, vertical = 6.dp)) {
-                Text("${item.quantity} ${item.unit}", fontSize = 13.sp, color = RailLogColors.SuccessEmerald, fontWeight = FontWeight.ExtraBold)
-            }
-        }
-    }
-}
+fun InventoryItemCard(
+    item: SupplyItem
+) {
 
-@Composable
-fun MetricCard(modifier: Modifier, icon: ImageVector, title: String, count: String, color: Color, bg: Color = RailLogColors.AISurface) {
-    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(2.dp, Color.Black)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Box(modifier = Modifier.size(32.dp).background(bg, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) {
-                    Icon(icon, null, tint = color, modifier = Modifier.size(18.dp))
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        border = BorderStroke(
+            1.dp,
+            Color(0xFFE2E8F0)
+        )
+    ) {
+
+        Row(
+            modifier = Modifier.padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+
+                Text(
+                    item.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    item.partCode,
+                    color = Color.Gray,
+                    fontSize = 12.sp
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(item.category.name)
+                    }
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = RailLogColors.AISurface
+                    )
+                ) {
+                    Text(
+                        "${item.quantity}",
+                        modifier = Modifier.padding(
+                            horizontal = 14.dp,
+                            vertical = 8.dp
+                        ),
+                        fontWeight = FontWeight.Bold
+                    )
                 }
-                Text(count, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = RailLogColors.PrimaryNavy)
+
+                Spacer(
+                    Modifier.height(6.dp)
+                )
+
+                Text(
+                    item.unit,
+                    fontSize = 11.sp,
+                    color = Color.Gray
+                )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(title, fontSize = 12.sp, color = Color.Black, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
