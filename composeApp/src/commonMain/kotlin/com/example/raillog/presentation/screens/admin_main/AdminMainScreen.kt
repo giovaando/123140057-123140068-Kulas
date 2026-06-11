@@ -31,6 +31,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import com.example.raillog.presentation.components.EmptyState
 
 /**
  * Format timestamp untuk Dashboard Admin
@@ -242,9 +243,10 @@ fun AdminVerificationTab(viewModel: AdminMainViewModel, onDetail: (Long) -> Unit
             }
             if (items.isEmpty()) {
                 item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(60.dp), contentAlignment = Alignment.Center) {
-                        Text("Tidak ada antrean audit saat ini.", fontWeight = FontWeight.Bold, color = Color.Black)
-                    }
+                    EmptyState(
+                        title = "Tidak Ada Audit",
+                        message = "Belum ada requisition yang perlu diverifikasi."
+                    )
                 }
             }
             item { Spacer(modifier = Modifier.height(60.dp)) }
