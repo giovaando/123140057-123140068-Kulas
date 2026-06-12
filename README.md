@@ -79,11 +79,12 @@ Aplikasi ini dibangun dengan pendekatan **Adaptive UI** yang menyesuaikan tampil
 - [x] UI Polish: Font Geist & Branding Navy Blue
 - [x] Unit tests (✅ 12 Unit Tests Passed)
 
-### Sprint 5 (Final) — Rencana
-- [ ] Demo-ready build
-- [ ] Release APK
-- [ ] Dokumentasi lengkap
-- [ ] Video demo
+### Sprint 5 (Final) — ✅ Selesai
+- [x] Contextual AI Assistant terhubung ke navigasi (Staff & Admin)
+- [x] Cleanup dead routes (Home, AddSupply, dll)
+- [x] Technical Doc viewer di Supply Detail
+- [x] Refactor unit tests → 19 test valid (menguji kode production langsung)
+- [x] Dokumentasi & demo script
 
 ---
 
@@ -211,7 +212,7 @@ Gunakan **JDK 17** untuk Gradle. Jalankan:
 
 ## 🧪 Validasi & Testing
 
-Proyek ini telah divalidasi dengan rangkaian unit test menyeluruh (12 skenario) untuk memastikan integritas logika bisnis.
+Proyek ini telah divalidasi dengan rangkaian unit test menyeluruh (19 skenario) untuk memastikan integritas logika bisnis.
 
 ```bash
 # Jalankan unit test
@@ -219,6 +220,7 @@ Proyek ini telah divalidasi dengan rangkaian unit test menyeluruh (12 skenario) 
 ```
 
 **Cakupan Test:**
+- ✅ Validasi Login (Admin/Staff Role Priority)
 - ✅ Validasi Regex Project Code (`[TYPE]-[REGION]-[CODE]`)
 - ✅ Logika `canSubmit` pada Requisition Wizard (Signature & Items check)
 - ✅ Filter Antrian Verifikasi Admin (Search & Status)
@@ -235,7 +237,7 @@ Proyek ini telah divalidasi dengan rangkaian unit test menyeluruh (12 skenario) 
 | Sprint 2: Core Features | 12 | ✅ Selesai | CRUD, navigasi, local storage |
 | Sprint 3: Advanced | 13 | ✅ Selesai | Search, AI integration, offline |
 | Sprint 4: Polish | 14 | ✅ Selesai | Testing, bug fix, UI polish |
-| Sprint 5: Final | 15 | 🔄 Rencana | Demo, APK, dokumentasi lengkap |
+| Sprint 5: Final | 15 | ✅ Selesai | Demo UAS, Dokumentasi, Validasi |
 
 ---
 
@@ -250,3 +252,4 @@ Proyek ini telah divalidasi dengan rangkaian unit test menyeluruh (12 skenario) 
 ---
 
 *Proyek ini dikembangkan sebagai bagian dari mata kuliah Pengembangan Aplikasi Mobile — Institut Teknologi Sumatera (ITERA)*
+ Mobile — Institut Teknologi Sumatera (ITERA)*

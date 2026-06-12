@@ -125,11 +125,6 @@ android {
             "\"${localProperties.getProperty("GEMINI_API_KEY", "")}\""
         )
 
-        buildConfigField(
-            "String",
-            "VISION_API_KEY",
-            "\"${localProperties.getProperty("VISION_API_KEY", "")}\""
-        )
     }
 
     packaging {
