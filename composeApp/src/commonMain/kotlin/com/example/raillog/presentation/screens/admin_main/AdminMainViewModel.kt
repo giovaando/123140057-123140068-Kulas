@@ -2,20 +2,27 @@ package com.example.raillog.presentation.screens.admin_main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.raillog.data.local.datastore.UserPreferences
 import com.example.raillog.domain.model.Priority
 import com.example.raillog.domain.model.SupplyItem
 import com.example.raillog.domain.repository.SupplyRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class AdminMainViewModel(
-    private val supplyRepository: SupplyRepository
+    private val supplyRepository: SupplyRepository,
+    userPreferences: UserPreferences
 ) : ViewModel() {
 
+    private val activeUsername = userPreferences.activeUsername
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "")
+
     // 1. Ambil semua data dari database
-    val allItems: StateFlow<List<SupplyItem>> = supplyRepository.getAllItems()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val allItems: StateFlow<List<SupplyItem>> = activeUsername.flatMapLatest { username ->
+        supplyRepository.getAllItems(username)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // 2. Filter data PENDING saja
     val pendingRequisitions: StateFlow<List<SupplyItem>> = allItems.map { items ->
