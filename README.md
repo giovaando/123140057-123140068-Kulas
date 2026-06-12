@@ -28,13 +28,26 @@
 Silakan lihat demonstrasi fitur utama aplikasi kami di bawah ini:
 
 ### Video Demo
-*   [**Tonton Demo Lengkap di YouTube**]([https://youtu.be/KjUJj9yNHTE])
+*   [**Tonton Demo Lengkap di YouTube**](https://youtu.be/KjUJj9yNHTE)
 
 ### Screenshots
 
-| Dashboard Staff  | Pengajuan Material (AI) | Dashboard Admin |
-|:----------------:| :---: | :---: |
-| ![Dashboard]([]) | ![AI Validation]([LINK_SS_2]) | ![Admin View]([LINK_SS_3]) |
+| Dashboard Staff  | Dashboard Admin |
+|:----------------:| :---: |
+|<img width="720" height="1600" alt="498e4310-851f-4e95-9cba-5972aac9bfc0" src="https://github.com/user-attachments/assets/1bea858e-1638-41a3-99b2-b4ee7330d870" /> | <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 23 26" src="https://github.com/user-attachments/assets/752eed09-5199-4701-869c-05b18c3ba57c" /> |
+| <img width="720" height="1600" alt="Image" src="https://github.com/user-attachments/assets/5bced337-5ef8-45d6-a7c6-977760c75df1" /> | <img width="720" height="1600" alt="Image" src="https://github.com/user-attachments/assets/4cc57994-57f6-45c6-a345-7a3a71b2cbde" /> |
+| <img width="720" height="1600" alt="Image" src="https://github.com/user-attachments/assets/756f6cbf-e5a3-4bc0-949d-a6bd40bf1987" /> | <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 20 (3)" src="https://github.com/user-attachments/assets/adf6a167-61c7-483d-83ba-bf5bbdfeef7b" /> |
+| <img width="720" height="1600" alt="Image" src="https://github.com/user-attachments/assets/fd131eeb-5c92-4ed8-9e27-fa669610ad7d" /> | <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 21" src="https://github.com/user-attachments/assets/5a7b565e-1302-4ffa-a88c-cf8e8a2d62b5" /> |
+| <img width="720" height="1600" alt="Image" src="https://github.com/user-attachments/assets/875e68c4-3eb2-4521-9609-b5cd67b2d76f" /> | <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 21 (1)" src="https://github.com/user-attachments/assets/b3ad8381-dbbf-410e-a055-fdc8d9472e95" /> |
+| <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 19 (1)" src="https://github.com/user-attachments/assets/1baafb34-965a-4e7d-a0fc-d834205efbb8" /> | <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 21 (2)" src="https://github.com/user-attachments/assets/be689365-84d7-4bb7-9029-aba3a06076fe" /> |
+| <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 19 (2)" src="https://github.com/user-attachments/assets/3979dd91-620a-4bc7-9036-b8402f19be40" /> | - |
+| <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 19 (3)" src="https://github.com/user-attachments/assets/8821178a-1a0f-4cd2-b52c-ff2b2ed0eef9" /> | - |
+| <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 19 (3)" src="https://github.com/user-attachments/assets/8821178a-1a0f-4cd2-b52c-ff2b2ed0eef9" /> | - |
+| <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 20" src="https://github.com/user-attachments/assets/5f11032f-7f44-49ea-a112-87969eab5e69" /> | - |
+| <img width="720" height="1600" alt="WhatsApp Image 2026-06-12 at 23 00 20 (1)" src="https://github.com/user-attachments/assets/10f26809-6441-419b-992d-a7dbbd47d0b8" /> | - |
+| <img width="720" height="1600" alt="d0a620cf-c6a9-4bdf-8cc6-227a324b4b6a" src="https://github.com/user-attachments/assets/f0bad458-a591-4e28-b588-4dbdc970f2e1" /> | <img width="720" height="1600" alt="d0a620cf-c6a9-4bdf-8cc6-227a324b4b6a" src="https://github.com/user-attachments/assets/8f9b7906-0048-4bf7-aac0-bba3bad0d92e" /> |
+
+
 
 ---
 
