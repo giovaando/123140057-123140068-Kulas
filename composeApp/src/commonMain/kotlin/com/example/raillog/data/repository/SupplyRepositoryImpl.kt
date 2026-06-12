@@ -27,11 +27,22 @@ class SupplyRepositoryImpl(
     private val queries = db.supplyItemQueries
     private val draftQueries = db.draftRequisitionQueries
 
-    override fun getAllItems(): Flow<List<SupplyItem>> {
-        return queries.getAllItems()
+    // Implementasi migrasi
+    override suspend fun migrateDataToUser(username: String) {
+        withContext(Dispatchers.IO) {
+            println("DEBUG_MIGRATION: Attempting migration for user: $username")
+            queries.migrateDataToUser(username)
+            println("DEBUG_MIGRATION: Migration command executed for: $username")
+        }
+    }
+
+    override fun getAllItems(activeUsername: String): Flow<List<SupplyItem>> {
+        println("DEBUG_QUERY: Fetching items for activeUsername: '$activeUsername'")
+        return queries.getAllItems(activeUsername)
             .asFlow()
             .mapToList(Dispatchers.IO)
             .map { entities ->
+                println("DEBUG_QUERY: Found ${entities.size} items for user: '$activeUsername' in DB")
                 entities.map { entity ->
                     SupplyItem(
                         id = entity.id,
@@ -46,17 +57,14 @@ class SupplyRepositoryImpl(
                         documentRef = entity.document_ref,
                         notes = entity.notes,
                         createdAt = Instant.fromEpochMilliseconds(entity.created_at),
-                        updatedAt = Instant.fromEpochMilliseconds(entity.updated_at)
+                        updatedAt = Instant.fromEpochMilliseconds(entity.updated_at),
+                        createdBy = entity.created_by
                     )
                 }
             }
     }
 
     override fun getItemById(id: Long): Flow<SupplyItem?> {
-        // FIX: Ganti .asFlow().map { it.executeAsOneOrNull() } dengan
-        // .asFlow().mapToOneOrNull() agar flow benar-benar reaktif.
-        // Versi lama hanya emit SEKALI dan tidak memancarkan ulang
-        // ketika data berubah di database.
         return queries.getItemById(id)
             .asFlow()
             .mapToOneOrNull(Dispatchers.IO)
@@ -75,13 +83,14 @@ class SupplyRepositoryImpl(
                         documentRef = it.document_ref,
                         notes = it.notes,
                         createdAt = Instant.fromEpochMilliseconds(it.created_at),
-                        updatedAt = Instant.fromEpochMilliseconds(it.updated_at)
+                        updatedAt = Instant.fromEpochMilliseconds(it.updated_at),
+                        createdBy = it.created_by
                     )
                 }
             }
     }
 
-    override suspend fun insertItem(item: SupplyItem) {
+    override suspend fun insertItem(item: SupplyItem, activeUsername: String) {
         withContext(Dispatchers.IO) {
             val now = Clock.System.now().toEpochMilliseconds()
             queries.insertItem(
@@ -96,7 +105,8 @@ class SupplyRepositoryImpl(
                 document_ref = item.documentRef,
                 notes = item.notes,
                 created_at = now,
-                updated_at = now
+                updated_at = now,
+                created_by = activeUsername
             )
             if (item.priority == Priority.CRITICAL || item.priority == Priority.HIGH) {
                 notificationService.showCriticalAlert(item.name, item.quantity)
@@ -142,16 +152,14 @@ class SupplyRepositoryImpl(
         }
     }
 
-    // ==================== DRAFT REQUISITION ====================
-
-    override suspend fun saveDraft(draftId: String, projectTitle: String, currentStep: Int, lastUpdated: Long, formStateJson: String) {
+    override suspend fun saveDraft(draftId: String, projectTitle: String, currentStep: Int, lastUpdated: Long, formStateJson: String, activeUsername: String) {
         withContext(Dispatchers.IO) {
-            draftQueries.insertOrReplaceDraft(draftId, projectTitle, currentStep.toLong(), lastUpdated, formStateJson)
+            draftQueries.insertOrReplaceDraft(draftId, projectTitle, currentStep.toLong(), lastUpdated, formStateJson, activeUsername)
         }
     }
 
-    override fun getAllDrafts(): Flow<List<DraftItem>> {
-        return draftQueries.getAllDrafts().asFlow().mapToList(Dispatchers.IO).map { entities ->
+    override fun getAllDrafts(activeUsername: String): Flow<List<DraftItem>> {
+        return draftQueries.getAllDrafts(activeUsername).asFlow().mapToList(Dispatchers.IO).map { entities ->
             entities.map { DraftItem(it.draftId, it.projectTitle, it.currentStep.toInt(), it.lastUpdated, it.formStateJson) }
         }
     }
