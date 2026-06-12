@@ -21,7 +21,7 @@ fun RailLogSectionHeader(
             text = title,
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = RailLogColors.PrimaryNavy
+            color = RailLogColors.PrimaryAction
         )
 
         subtitle?.let {

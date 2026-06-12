@@ -20,13 +20,13 @@ fun StatusBadge(
         when (text.uppercase()) {
 
             "VERIFIED" ->
-                RailLogColors.SuccessBackground
+                RailLogColors.Success50
 
             "PENDING" ->
-                RailLogColors.WarningBackground
+                RailLogColors.Warning50
 
             "REJECTED" ->
-                RailLogColors.ErrorBackground
+                RailLogColors.Danger50
 
             else ->
                 RailLogColors.AISurface
@@ -36,16 +36,16 @@ fun StatusBadge(
         when (text.uppercase()) {
 
             "VERIFIED" ->
-                RailLogColors.SuccessEmerald
+                RailLogColors.Success600
 
             "PENDING" ->
-                RailLogColors.WarningAmber
+                RailLogColors.Warning600
 
             "REJECTED" ->
-                RailLogColors.ErrorRed
+                RailLogColors.Danger600
 
             else ->
-                RailLogColors.PrimaryNavy
+                RailLogColors.PrimaryAction
         }
 
     Text(

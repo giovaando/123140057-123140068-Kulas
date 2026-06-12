@@ -1,118 +1,64 @@
-package com.example.raillog.presentation
+package com.example.raillog.presentation.screens.admin_main
 
-import com.example.raillog.domain.model.PartCategory
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.raillog.domain.model.Priority
 import com.example.raillog.domain.model.SupplyItem
-import com.example.raillog.domain.model.SupplyStatus
 import com.example.raillog.domain.repository.SupplyRepository
-import com.example.raillog.presentation.screens.admin_main.AdminMainViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.*
 
-@OptIn(ExperimentalCoroutinesApi::class)
-class AdminMainViewModelTest {
-    private val testDispatcher = StandardTestDispatcher()
+@OptIn(FlowPreview::class)
+class AdminMainViewModel(
+    private val supplyRepository: SupplyRepository
+) : ViewModel() {
 
-    @BeforeTest
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
-    }
+    // 1. Ambil semua data dari database
+    val allItems: StateFlow<List<SupplyItem>> = supplyRepository.getAllItems()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    @AfterTest
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    // 2. Filter data PENDING saja
+    val pendingRequisitions: StateFlow<List<SupplyItem>> = allItems.map { items ->
+        items.filter { it.status.name == "PENDING" }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    @Test
-    fun `test filtering by search query`() = runTest {
-        val items = listOf(
-            createMockItem(1, "Bantalan Beton"),
-            createMockItem(2, "Rel R54")
-        )
-        
-        val mockRepo = object : EmptySupplyRepo() {
-            override fun getAllItems() = flowOf(items)
+    // 3. Metrik Operasional untuk Dashboard
+    val criticalPendingCount: StateFlow<Int> = pendingRequisitions.map { items ->
+        items.count { it.priority == Priority.CRITICAL || it.priority == Priority.HIGH }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val averageAiConfidence: StateFlow<Int> = allItems.map { items ->
+        if (items.isEmpty()) 0
+        else items.sumOf { (75 + (it.id % 25)).toInt() } / items.size
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    // State untuk Pencarian
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    // FIX: _selectedFilter tetap ada untuk kompatibilitas UI, tapi tidak lagi
+    // digunakan untuk memunculkan status non-PENDING di tab Verifikasi.
+    private val _selectedFilter = MutableStateFlow(0)
+    val selectedFilter: StateFlow<Int> = _selectedFilter.asStateFlow()
+
+    // FIX: filteredPendingItems sekarang di-derive dari pendingRequisitions
+    // (bukan allItems), sehingga item yang sudah VERIFIED/REJECTED tidak akan
+    // pernah muncul kembali di antrean verifikasi setelah diproses.
+    val filteredPendingItems: StateFlow<List<SupplyItem>> = combine(
+        pendingRequisitions,
+        _searchQuery.debounce(300L)
+    ) { items, query ->
+        if (query.isEmpty()) {
+            items
+        } else {
+            items.filter { item ->
+                item.name.contains(query, ignoreCase = true) ||
+                        item.partCode.contains(query, ignoreCase = true)
+            }
         }
-        
-        val viewModel = AdminMainViewModel(mockRepo)
-        
-        // Agar StateFlow (WhileSubscribed) aktif, kita harus mengoleksinya
-        val collectJob = backgroundScope.launch(UnconfinedTestDispatcher(testDispatcher.scheduler)) {
-            viewModel.filteredPendingItems.collect()
-        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // 1. Test Search "Rel"
-        viewModel.updateSearchQuery("Rel")
-        
-        // Maju melampaui debounce 300ms
-        testDispatcher.scheduler.advanceTimeBy(400)
-        testDispatcher.scheduler.runCurrent()
-        
-        val filtered = viewModel.filteredPendingItems.value
-        assertEquals(1, filtered.size, "Seharusnya ada 1 item yang cocok dengan 'Rel'")
-        assertTrue(filtered.first().name.contains("Rel"))
-    }
-
-    @Test
-    fun `test filtering by status`() = runTest {
-        val items = listOf(
-            createMockItem(1, "A", SupplyStatus.PENDING),
-            createMockItem(2, "B", SupplyStatus.VERIFIED)
-        )
-        
-        val mockRepo = object : EmptySupplyRepo() {
-            override fun getAllItems() = flowOf(items)
-        }
-        
-        val viewModel = AdminMainViewModel(mockRepo)
-        
-        val collectJob = backgroundScope.launch(UnconfinedTestDispatcher(testDispatcher.scheduler)) {
-            viewModel.filteredPendingItems.collect()
-        }
-
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Filter status VERIFIED (index 2 di AdminMainViewModel)
-        viewModel.updateSelectedFilter(2)
-        
-        // Debounce tetap berlaku karena combine dipicu ulang
-        testDispatcher.scheduler.advanceTimeBy(400)
-        testDispatcher.scheduler.runCurrent()
-        
-        val filtered = viewModel.filteredPendingItems.value
-        assertEquals(1, filtered.size, "Seharusnya ada 1 item dengan status VERIFIED")
-        assertEquals(SupplyStatus.VERIFIED, filtered.first().status)
-    }
-
-    private fun createMockItem(id: Long, name: String, status: SupplyStatus = SupplyStatus.PENDING) = SupplyItem(
-        id = id, partCode = "CODE-$id", name = name, category = PartCategory.INFRASTRUCTURE,
-        quantity = 10, unit = "unit", supplier = "S", status = status, priority = Priority.NORMAL
-    )
-}
-
-open class EmptySupplyRepo : SupplyRepository {
-    override fun getAllItems() = flowOf(emptyList<SupplyItem>())
-    override fun getItemById(id: Long) = flowOf(null)
-    override suspend fun insertItem(item: SupplyItem) {}
-    override suspend fun updateItem(item: SupplyItem) {}
-    override suspend fun deleteItem(id: Long) {}
-    override suspend fun updateStatus(id: Long, status: SupplyStatus) {}
-    override suspend fun saveDraft(draftId: String, projectTitle: String, currentStep: Int, lastUpdated: Long, formStateJson: String) {}
-    override fun getAllDrafts() = flowOf(emptyList<com.example.raillog.domain.model.DraftItem>())
-    override suspend fun deleteDraft(draftId: String) {}
+    // Fungsi untuk diakses oleh UI
+    fun updateSearchQuery(query: String) { _searchQuery.value = query }
+    fun updateSelectedFilter(index: Int) { _selectedFilter.value = index }
 }

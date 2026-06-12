@@ -23,7 +23,7 @@ fun DashboardSection(
             text = title,
             fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = RailLogColors.PrimaryNavy
+            color = RailLogColors.PrimaryAction
         )
 
         subtitle?.let {

@@ -16,7 +16,7 @@ fun RailLogTopBar(
             Text(
                 text = title,
                 fontWeight = FontWeight.ExtraBold,
-                color = RailLogColors.PrimaryNavy
+                color = RailLogColors.PrimaryAction
             )
         },
         colors = TopAppBarDefaults.topAppBarColors(

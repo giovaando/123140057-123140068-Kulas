@@ -27,7 +27,7 @@ fun ActiveTaskCard(
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = RailLogColors.PrimaryNavy
+            containerColor = RailLogColors.PrimaryAction
         ),
         modifier = Modifier.fillMaxWidth()
     ) {

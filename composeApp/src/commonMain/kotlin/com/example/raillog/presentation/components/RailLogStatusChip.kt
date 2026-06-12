@@ -18,16 +18,16 @@ fun RailLogStatusChip(
     status: String
 ) {
     val bgColor = when (status.uppercase()) {
-        "VERIFIED" -> RailLogColors.SuccessBackground
-        "PENDING" -> RailLogColors.WarningBackground
-        "REJECTED" -> RailLogColors.ErrorBackground
-        else -> RailLogColors.SurfaceSlate
+        "VERIFIED" -> RailLogColors.Success50
+        "PENDING" -> RailLogColors.Warning50
+        "REJECTED" -> RailLogColors.Danger50
+        else -> RailLogColors.Neutral100
     }
 
     val textColor = when (status.uppercase()) {
-        "VERIFIED" -> RailLogColors.SuccessEmerald
-        "PENDING" -> RailLogColors.WarningAmber
-        "REJECTED" -> RailLogColors.ErrorRed
+        "VERIFIED" -> RailLogColors.Success600
+        "PENDING" -> RailLogColors.Warning600
+        "REJECTED" -> RailLogColors.Danger600
         else -> Color.Black
     }
 

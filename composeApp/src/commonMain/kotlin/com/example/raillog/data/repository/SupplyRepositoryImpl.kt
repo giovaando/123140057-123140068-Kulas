@@ -2,6 +2,7 @@ package com.example.raillog.data.repository
 
 import app.cash.sqldelight.coroutines.asFlow
 import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOneOrNull
 import com.example.raillog.data.local.RailLogDatabase
 import com.example.raillog.domain.model.DraftItem
 import com.example.raillog.domain.model.SupplyItem
@@ -52,9 +53,13 @@ class SupplyRepositoryImpl(
     }
 
     override fun getItemById(id: Long): Flow<SupplyItem?> {
+        // FIX: Ganti .asFlow().map { it.executeAsOneOrNull() } dengan
+        // .asFlow().mapToOneOrNull() agar flow benar-benar reaktif.
+        // Versi lama hanya emit SEKALI dan tidak memancarkan ulang
+        // ketika data berubah di database.
         return queries.getItemById(id)
             .asFlow()
-            .map { it.executeAsOneOrNull() }
+            .mapToOneOrNull(Dispatchers.IO)
             .map { entity ->
                 entity?.let {
                     SupplyItem(
@@ -93,8 +98,6 @@ class SupplyRepositoryImpl(
                 created_at = now,
                 updated_at = now
             )
-            
-            // TRIGGER NOTIFICATION: Jika priority CRITICAL atau HIGH (PRD 8.4)
             if (item.priority == Priority.CRITICAL || item.priority == Priority.HIGH) {
                 notificationService.showCriticalAlert(item.name, item.quantity)
             }
@@ -117,8 +120,6 @@ class SupplyRepositoryImpl(
                 updated_at = Clock.System.now().toEpochMilliseconds(),
                 id = item.id
             )
-            
-            // Notifikasi jika update mengubah prioritas ke CRITICAL/HIGH
             if (item.priority == Priority.CRITICAL || item.priority == Priority.HIGH) {
                 notificationService.showCriticalAlert(item.name, item.quantity)
             }
@@ -138,18 +139,14 @@ class SupplyRepositoryImpl(
                 updated_at = Clock.System.now().toEpochMilliseconds(),
                 id = id
             )
-            
-            // Opsional: Notifikasi jika status menjadi VERIFIED (UX Improvement)
-            if (status == SupplyStatus.VERIFIED) {
-                // Bisa ditambahkan showInfoAlert jika perlu di masa depan
-            }
         }
     }
 
     // ==================== DRAFT REQUISITION ====================
+
     override suspend fun saveDraft(draftId: String, projectTitle: String, currentStep: Int, lastUpdated: Long, formStateJson: String) {
-        withContext(Dispatchers.IO) { 
-            draftQueries.insertOrReplaceDraft(draftId, projectTitle, currentStep.toLong(), lastUpdated, formStateJson) 
+        withContext(Dispatchers.IO) {
+            draftQueries.insertOrReplaceDraft(draftId, projectTitle, currentStep.toLong(), lastUpdated, formStateJson)
         }
     }
 

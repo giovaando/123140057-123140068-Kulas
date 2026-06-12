@@ -42,7 +42,7 @@ fun RailLogSearchField(
             }
         },
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = RailLogColors.PrimaryNavy,
+            focusedBorderColor = RailLogColors.PrimaryAction,
             unfocusedBorderColor = Color.Gray
         ),
         singleLine = true

@@ -17,7 +17,7 @@ class AdminMainViewModel(
     val allItems: StateFlow<List<SupplyItem>> = supplyRepository.getAllItems()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // 2. Filter data PENDING
+    // 2. Filter data PENDING saja
     val pendingRequisitions: StateFlow<List<SupplyItem>> = allItems.map { items ->
         items.filter { it.status.name == "PENDING" }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -28,36 +28,30 @@ class AdminMainViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
     val averageAiConfidence: StateFlow<Int> = allItems.map { items ->
-        if (items.isEmpty()) 0 
+        if (items.isEmpty()) 0
         else items.sumOf { (75 + (it.id % 25)).toInt() } / items.size
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    // State untuk Pencarian dan Filter
+    // State untuk Pencarian
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     private val _selectedFilter = MutableStateFlow(0)
     val selectedFilter: StateFlow<Int> = _selectedFilter.asStateFlow()
 
-    // 4. Logika Pintar: Combine + Debounce
+    // FIX: filteredPendingItems di-derive dari pendingRequisitions (bukan allItems),
+    // sehingga item VERIFIED/REJECTED tidak pernah muncul kembali di antrean.
     val filteredPendingItems: StateFlow<List<SupplyItem>> = combine(
-        allItems,
-        _searchQuery.debounce(300L),
-        _selectedFilter
-    ) { items, query, filter ->
-        items.filter { item ->
-            // Filter Teks
-            val matchesSearch = query.isEmpty() || item.name.contains(query, ignoreCase = true)
-
-            // Filter Kategori/Status
-            val matchesFilter = when (filter) {
-                1 -> item.status.name == "PENDING"
-                2 -> item.status.name == "VERIFIED"
-                3 -> item.status.name == "REJECTED"
-                else -> true
+        pendingRequisitions,
+        _searchQuery.debounce(300L)
+    ) { items, query ->
+        if (query.isEmpty()) {
+            items
+        } else {
+            items.filter { item ->
+                item.name.contains(query, ignoreCase = true) ||
+                        item.partCode.contains(query, ignoreCase = true)
             }
-
-            matchesSearch && matchesFilter
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
