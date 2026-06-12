@@ -46,6 +46,7 @@ private fun formatAdminTs(millis: Long): String {
 fun AdminMainScreen(
     viewModel: AdminMainViewModel = koinViewModel(),
     onNavigateToVerificationDetail: (Long) -> Unit,
+    onNavigateToAIAssistant: () -> Unit,
     onLogout: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
@@ -82,6 +83,14 @@ fun AdminMainScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToAIAssistant) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = "Asisten AI",
+                            tint = RailLogColors.PrimaryAction,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                     IconButton(onClick = onLogout) {
                         Icon(Icons.AutoMirrored.Filled.Logout, null,
                             tint = RailLogColors.Danger600, modifier = Modifier.size(20.dp))
