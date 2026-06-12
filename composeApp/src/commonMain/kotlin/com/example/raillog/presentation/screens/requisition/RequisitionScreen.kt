@@ -58,12 +58,23 @@ fun RequisitionScreen(
 
     LaunchedEffect(Unit) {
         if (draftId.isNullOrBlank()) {
-            val name = userPreferences.staffName.first()
-            val nip = userPreferences.staffId.first()
-            val phone = userPreferences.staffPhone.first()
-            if (name.isNotEmpty()) viewModel.updateName(name)
-            if (nip.isNotEmpty()) viewModel.updateEmployeeId(nip)
-            if (phone.isNotEmpty()) viewModel.updatePhone(phone)
+            val accountsString = userPreferences.staffAccounts.first()
+            val activeUsername = userPreferences.activeUsername.first()
+            
+            // Parse accounts to find the one matching activeUsername
+            val accountList = if (accountsString.isNotEmpty()) {
+                accountsString.split(";").map { it.split("|") }
+            } else {
+                emptyList()
+            }
+            val activeAccount = accountList.find { it.size >= 5 && it[0] == activeUsername }
+            
+            if (activeAccount != null) {
+                // Format: user|pass|name|id|phone
+                viewModel.updateName(activeAccount[2])
+                viewModel.updateEmployeeId(activeAccount[3])
+                viewModel.updatePhone(activeAccount[4])
+            }
         } else {
             viewModel.loadDraft(draftId) { savedStep -> currentStep = savedStep }
         }
@@ -276,22 +287,31 @@ private fun Step3MaterialCatalog(uiState: RequisitionFormState, viewModel: Requi
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (item.isSafe) RailLogColors.Success600 else RailLogColors.Danger600)
                         }
-                        OutlinedTextField(
-                            value = if (item.reqQty == 0) "" else item.reqQty.toString(),
-                            onValueChange = { val qty = it.filter { c -> c.isDigit() }.toIntOrNull() ?: 0; viewModel.updateItemQuantity(item.id, qty) },
-                            modifier = Modifier.width(80.dp),
-                            placeholder = { Text("0", textAlign = TextAlign.Center,
-                                color = RailLogColors.TextTertiary) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
-                            textStyle = LocalTextStyle.current.copy(
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Medium,
-                                color = RailLogColors.TextPrimary
-                            ),
-                            colors = outlinedFieldColors()
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { viewModel.updateItemQuantity(item.id, item.reqQty - 1) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Remove, "Kurang", tint = RailLogColors.PrimaryAction)
+                            }
+                            OutlinedTextField(
+                                value = if (item.reqQty == 0) "" else item.reqQty.toString(),
+                                onValueChange = { val qty = it.filter { c -> c.isDigit() }.toIntOrNull() ?: 0; viewModel.updateItemQuantity(item.id, qty) },
+                                modifier = Modifier.width(60.dp),
+                                placeholder = { Text("0", textAlign = TextAlign.Center, color = RailLogColors.TextTertiary) },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp),
+                                textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.Medium, color = RailLogColors.TextPrimary),
+                                colors = outlinedFieldColors()
+                            )
+                            IconButton(
+                                onClick = { viewModel.updateItemQuantity(item.id, item.reqQty + 1) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.Add, "Tambah", tint = RailLogColors.PrimaryAction)
+                            }
+                        }
                     }
                 }
             }
