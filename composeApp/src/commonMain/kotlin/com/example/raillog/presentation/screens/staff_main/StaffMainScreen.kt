@@ -60,6 +60,7 @@ fun StaffMainScreen(
     viewModel: StaffMainViewModel = koinViewModel(),
     onNavigateToNewRequisition: () -> Unit,
     onNavigateToResumeDraft: (String) -> Unit = {},
+    onNavigateToAIAssistant: () -> Unit,
     onLogout: () -> Unit
 ) {
     val userRole  by viewModel.activeUserRole.collectAsState()
@@ -85,7 +86,8 @@ fun StaffMainScreen(
                             modifier = Modifier
                                 .size(30.dp)
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(RailLogColors.PrimaryAction),
+                                .background(RailLogColors.PrimaryAction)
+                                .clickable { selectedTab = 0 },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Train, null,
@@ -97,6 +99,15 @@ fun StaffMainScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onNavigateToAIAssistant) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = "Asisten AI",
+                            tint = RailLogColors.PrimaryAction,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
                     var showMenu by remember { mutableStateOf(false) }
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.AccountCircle, null,
@@ -109,19 +120,13 @@ fun StaffMainScreen(
                             .background(RailLogColors.Surface)
                             .border(1.dp, RailLogColors.BorderDefault, RoundedCornerShape(10.dp))
                     ) {
-                        val savedName  by viewModel.userPreferences.staffName.collectAsState(initial = "")
-                        val savedId    by viewModel.userPreferences.staffId.collectAsState(initial = "")
+                        // Multi-account logic is complex, for now, just show a placeholder
                         DropdownMenuItem(
                             text = {
                                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                    Text(savedName.ifEmpty { "Staff Logistik" },
+                                    Text("Staff Logistik",
                                         fontWeight = FontWeight.Medium,
                                         color = RailLogColors.TextPrimary)
-                                    if (savedId.isNotEmpty())
-                                        Text("NIP: $savedId",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = RailLogColors.TextSecondary)
-                                    Spacer(Modifier.height(2.dp))
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(100.dp))
