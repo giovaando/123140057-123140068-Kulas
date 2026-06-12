@@ -23,6 +23,21 @@
 
 ---
 
+## 🎥 Dokumentasi Demo
+
+Silakan lihat demonstrasi fitur utama aplikasi kami di bawah ini:
+
+### Video Demo
+*   [**Tonton Demo Lengkap di YouTube**]([https://youtu.be/KjUJj9yNHTE])
+
+### Screenshots
+
+| Dashboard Staff  | Pengajuan Material (AI) | Dashboard Admin |
+|:----------------:| :---: | :---: |
+| ![Dashboard]([]) | ![AI Validation]([LINK_SS_2]) | ![Admin View]([LINK_SS_3]) |
+
+---
+
 ## 👥 Tim Pengembang
 
 | NIM | Nama | Peran |
@@ -252,4 +267,3 @@ Proyek ini telah divalidasi dengan rangkaian unit test menyeluruh (19 skenario) 
 ---
 
 *Proyek ini dikembangkan sebagai bagian dari mata kuliah Pengembangan Aplikasi Mobile — Institut Teknologi Sumatera (ITERA)*
- Mobile — Institut Teknologi Sumatera (ITERA)*
