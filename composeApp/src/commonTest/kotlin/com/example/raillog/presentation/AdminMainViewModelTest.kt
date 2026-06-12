@@ -1,64 +1,79 @@
 package com.example.raillog.presentation.screens.admin_main
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.example.raillog.domain.model.Priority
-import com.example.raillog.domain.model.SupplyItem
+import com.example.raillog.data.local.datastore.UserPreferences
+import com.example.raillog.domain.model.*
 import com.example.raillog.domain.repository.SupplyRepository
-import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.first
 
-@OptIn(FlowPreview::class)
-class AdminMainViewModel(
-    private val supplyRepository: SupplyRepository
-) : ViewModel() {
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.*
+import kotlinx.datetime.Clock
+import kotlin.test.*
 
-    // 1. Ambil semua data dari database
-    val allItems: StateFlow<List<SupplyItem>> = supplyRepository.getAllItems()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+class FakeSupplyRepository : SupplyRepository {
+    private val items = MutableStateFlow<List<SupplyItem>>(emptyList())
+    private val drafts = MutableStateFlow<List<DraftItem>>(emptyList())
 
-    // 2. Filter data PENDING saja
-    val pendingRequisitions: StateFlow<List<SupplyItem>> = allItems.map { items ->
-        items.filter { it.status.name == "PENDING" }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun setItems(list: List<SupplyItem>) { items.value = list }
 
-    // 3. Metrik Operasional untuk Dashboard
-    val criticalPendingCount: StateFlow<Int> = pendingRequisitions.map { items ->
-        items.count { it.priority == Priority.CRITICAL || it.priority == Priority.HIGH }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    override suspend fun migrateDataToUser(username: String) {
+        // Do nothing for tests
+    }
 
-    val averageAiConfidence: StateFlow<Int> = allItems.map { items ->
-        if (items.isEmpty()) 0
-        else items.sumOf { (75 + (it.id % 25)).toInt() } / items.size
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    override fun getAllItems(activeUsername: String): Flow<List<SupplyItem>> = items.asStateFlow()
 
-    // State untuk Pencarian
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    override fun getItemById(id: Long): Flow<SupplyItem?> =
+        MutableStateFlow(items.value.find { it.id == id }).asStateFlow()
 
-    // FIX: _selectedFilter tetap ada untuk kompatibilitas UI, tapi tidak lagi
-    // digunakan untuk memunculkan status non-PENDING di tab Verifikasi.
-    private val _selectedFilter = MutableStateFlow(0)
-    val selectedFilter: StateFlow<Int> = _selectedFilter.asStateFlow()
+    override suspend fun insertItem(item: SupplyItem, activeUsername: String) {
+        items.value = items.value + item.copy(id = (items.value.maxOfOrNull { it.id } ?: 0L) + 1)
+    }
 
-    // FIX: filteredPendingItems sekarang di-derive dari pendingRequisitions
-    // (bukan allItems), sehingga item yang sudah VERIFIED/REJECTED tidak akan
-    // pernah muncul kembali di antrean verifikasi setelah diproses.
-    val filteredPendingItems: StateFlow<List<SupplyItem>> = combine(
-        pendingRequisitions,
-        _searchQuery.debounce(300L)
-    ) { items, query ->
-        if (query.isEmpty()) {
-            items
-        } else {
-            items.filter { item ->
-                item.name.contains(query, ignoreCase = true) ||
-                        item.partCode.contains(query, ignoreCase = true)
-            }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    override suspend fun updateItem(item: SupplyItem) {
+        items.value = items.value.map { if (it.id == item.id) item else it }
+    }
 
-    // Fungsi untuk diakses oleh UI
-    fun updateSearchQuery(query: String) { _searchQuery.value = query }
-    fun updateSelectedFilter(index: Int) { _selectedFilter.value = index }
+    override suspend fun deleteItem(id: Long) {
+        items.value = items.value.filterNot { it.id == id }
+    }
+
+    override suspend fun updateStatus(id: Long, status: SupplyStatus) {
+        items.value = items.value.map { if (it.id == id) it.copy(status = status) else it }
+    }
+
+    override suspend fun saveDraft(draftId: String, projectTitle: String, currentStep: Int, lastUpdated: Long, formStateJson: String, activeUsername: String) {
+        drafts.value = drafts.value + DraftItem(draftId, projectTitle, currentStep, lastUpdated, formStateJson)
+    }
+
+    override fun getAllDrafts(activeUsername: String): Flow<List<DraftItem>> = drafts.asStateFlow()
+
+    override suspend fun deleteDraft(draftId: String) {
+        drafts.value = drafts.value.filterNot { it.draftId == draftId }
+    }
+}
+
+// Minimal implementation to avoid datastore issues in commonTest
+class FakeUserPreferences : UserPreferences(
+    // Simple mock or dummy implementation that satisfies the constructor
+    // If we cannot mock, we can just pass a null if it's allowed or use a very basic dummy
+    // Since we need an actual DataStore instance, and it's complicated,
+    // let's try to just not use DataStore at all by creating a subclass that overrides DataStore
+    // Or just use a simple wrapper that we can inject.
+    // Given the constraints, the easiest is to override properties in UserPreferences directly
+    // and ignore the constructor parameter if possible, but that's Kotlin.
+    // Let's use a dummy object for DataStore
+    object : androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences> {
+        override val data = flowOf(androidx.datastore.preferences.core.emptyPreferences())
+        override suspend fun updateData(transform: suspend (androidx.datastore.preferences.core.Preferences) -> androidx.datastore.preferences.core.Preferences) = data.first()
+    }
+) {
+    override val activeUsername = flowOf("admin")
+}
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class AdminMainViewModelTest {
+    // Tests...
 }
